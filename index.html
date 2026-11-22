@@ -125,6 +125,15 @@ table.out td{padding:5px 6px;border-bottom:1px solid var(--line)}
 table.out td:last-child{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
 .error{border:1px solid var(--r-shock);color:var(--r-shock);border-radius:6px;padding:8px 12px;display:none}
 .copyrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.exportOpts{display:flex;flex-wrap:wrap;gap:10px 24px;margin-bottom:12px}
+.exportOpts .field{grid-template-columns:auto 100px}
+.exportGrid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:800px){.exportGrid{grid-template-columns:1fr}}
+.exportGrid h3{margin-bottom:8px}
+.dl{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.dl .hint{flex-basis:100%}
+.check{font-size:13px;display:flex;gap:6px;align-items:center;flex-basis:100%}
+.exportGrid a,.hint a{color:var(--accent)}
 footer{padding:0 20px 24px;color:var(--muted);font-size:13px;max-width:900px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
@@ -169,12 +178,8 @@ footer{padding:0 20px 24px;color:var(--muted);font-size:13px;max-width:900px}
     <div class="field"><label for="T0">Supply total temperature T₀ (K)</label><input id="T0" type="number" step="5" value="300"></div>
   </div>
   <div class="card">
-    <h3>Export to Flow Lab / CAD</h3>
-    <div class="copyrow">
-      <button class="btn" id="copyFlow">Copy flow table (CSV)</button>
-      <button class="btn" id="copyContour">Copy wall contour (CSV)</button>
-    </div>
-    <p class="hint" id="copyMsg">Paste into a spreadsheet, or save as .csv. STEP export lives in the MATLAB app.</p>
+    <h3>Build and simulate</h3>
+    <p class="hint">Download CAD and ANSYS files for this exact nozzle in the <a href="#export">export section</a> at the bottom of the page.</p>
   </div>
 </aside>
 
@@ -255,6 +260,55 @@ footer{padding:0 20px 24px;color:var(--muted);font-size:13px;max-width:900px}
       <button class="btn solid" id="dApply">Apply to nozzle and set P<sub>b</sub> = design P<sub>e</sub></button>
     </div>
     <table class="out" id="dOut"></table>
+  </section>
+
+  <section class="card" id="export">
+    <h2>Build it and simulate it</h2>
+    <p class="hint" style="margin:4px 0 10px">Every file is generated from the nozzle on screen, in millimetres. Change the design above and download again.</p>
+    <div class="row exportOpts">
+      <div class="field"><label for="xWall">Wall thickness (mm)</label><input id="xWall" type="number" step="0.5" min="0.2" value="2"></div>
+      <div class="field"><label for="xSeg">Facets around (STL smoothness)</label><input id="xSeg" type="number" step="12" min="24" max="360" value="96"></div>
+    </div>
+    <div class="exportGrid">
+      <div>
+        <h3>CAD (Siemens NX, SolidWorks, Fusion, 3D printing)</h3>
+        <div class="dl">
+          <button class="btn solid" id="xPartStl">Nozzle part (.stl)</button>
+          <p class="hint">Closed solid with the wall thickness above. NX: File › Import › STL, units mm. Ready for a 3D-printing slicer.</p>
+        </div>
+        <div class="dl">
+          <button class="btn" id="xPartDxf">Half-section sketch (.dxf)</button>
+          <p class="hint">Closed wall profile plus the axis line. In NX, import it and use Revolve about the axis for an exact, editable solid.</p>
+        </div>
+        <div class="dl">
+          <button class="btn" id="xContour">Wall contour points (.csv)</button>
+          <p class="hint">Inner wall x, r in mm, for a spline in any CAD tool or for the MATLAB app.</p>
+        </div>
+      </div>
+      <div>
+        <h3>CFD (ANSYS Fluent)</h3>
+        <div class="dl">
+          <button class="btn solid" id="xFluentDxf">2-D axisymmetric fluid domain (.dxf)</button>
+          <label class="check"><input type="checkbox" id="xPlenum" checked> Add exhaust plenum (needed to see the jet and external shocks)</label>
+          <p class="hint">Open in SpaceClaim or Discovery, use Fill to make a surface, then name the edges by layer: INLET, WALL, AXIS, OUTLET, FARFIELD.</p>
+        </div>
+        <div class="dl">
+          <button class="btn" id="xFluidStl">3-D fluid volume (.stl)</button>
+          <p class="hint">Named zones inlet, wall and outlet for Fluent Meshing (watertight workflow, units mm).</p>
+        </div>
+        <div class="dl">
+          <button class="btn" id="xSetup">Fluent setup sheet (.txt)</button>
+          <p class="hint">Boundary conditions, gas properties, solver settings and the 1-D predictions to check against.</p>
+        </div>
+        <div class="dl">
+          <button class="btn" id="xXyP">1-D wall pressure (.xy)</button>
+          <button class="btn" id="xXyM">1-D Mach number (.xy)</button>
+          <button class="btn" id="xFlow">Full 1-D table (.csv)</button>
+          <p class="hint">In Fluent: Results › Plots › XY Plot › Load File, to overlay the 1-D model on your CFD result.</p>
+        </div>
+      </div>
+    </div>
+    <p class="hint" id="xMsg" role="status"></p>
   </section>
 </main>
 </div>
@@ -794,24 +848,192 @@ $("dApply").addEventListener("click",()=>{
 ["dMode","dVal","dMach"].forEach(id=>$(id).addEventListener("input",updateDesign));
 $("dMode").addEventListener("change",()=>{$("dVal").value={M:3,Pe:5,mdot:20}[$("dMode").value];updateDesign();});
 
-/* ---------- copy exports ---------- */
-async function copyText(txt,label){
-  try{await navigator.clipboard.writeText(txt);$("copyMsg").textContent=`${label} copied. Paste into a spreadsheet or a .csv file.`;}
-  catch(e){$("copyMsg").textContent="Your browser blocked copying. Try the button again, or use EXPORT in the MATLAB app.";}
+/* ---------- exports: CAD and CFD files (all lengths in mm) ---------- */
+function profileMM(){
+  // Inner wall in mm with collinear samples removed (cones become 2 points).
+  const g=S.geo,pts=g.x.map((x,i)=>[x*1000,g.r[i]*1000]),out=[pts[0]];
+  for(let i=1;i<pts.length-1;i++){
+    const a=out[out.length-1],b=pts[i],c=pts[i+1];
+    if(Math.abs((b[1]-a[1])*(c[0]-b[0])-(c[1]-b[1])*(b[0]-a[0]))>1e-9)out.push(b);
+  }
+  out.push(pts[pts.length-1]);return out;
 }
-$("copyFlow").addEventListener("click",()=>{
-  const s=S.sol,geo=S.geo;if(!s)return;
-  let t=`# Flow Lab web | ${REG[s.regime].name} | P0 ${(S.P0/PSI).toFixed(3)} psia | T0 ${S.T0} K | Pb ${(S.Pb/PSI).toFixed(3)} psia | gamma ${S.g} | R ${S.R}\n`;
-  t+="x_mm,radius_mm,area_mm2,Mach,pressure_psia,temperature_K,velocity_mps,density_kgm3\n";
-  geo.x.forEach((x,i)=>{t+=[x*1000,geo.r[i]*1000,geo.A[i]*1e6,s.M[i],s.P[i]/PSI,s.T[i],s.V[i],s.rho[i]].map(v=>v.toPrecision(8)).join(",")+"\n";});
-  copyText(t,"Flow table");
-});
-$("copyContour").addEventListener("click",()=>{
-  const geo=S.geo;if(!geo)return;let t="x_mm,y_mm\n";
-  geo.x.forEach((x,i)=>{t+=`${(x*1000).toPrecision(8)},${(geo.r[i]*1000).toPrecision(8)}\n`;});
-  for(let i=geo.x.length-1;i>=0;i--)t+=`${(geo.x[i]*1000).toPrecision(8)},${(-geo.r[i]*1000).toPrecision(8)}\n`;
-  copyText(t,"Wall contour");
-});
+function revolve(loop,groups,N){
+  // Revolve a closed (x,r) loop about the x axis into a closed triangle mesh.
+  // Points on the axis collapse to one vertex, so the mesh stays watertight.
+  const V=[],idx=[];
+  for(const [x,r] of loop){
+    if(r<1e-9){idx.push([V.length]);V.push([x,0,0]);}
+    else{const row=[];for(let k=0;k<N;k++){const t=2*Math.PI*k/N;row.push(V.length);V.push([x,r*Math.cos(t),r*Math.sin(t)]);}idx.push(row);}
+  }
+  const T=[],m=loop.length;
+  for(let s=0;s<m;s++){
+    const A=idx[s],B=idx[(s+1)%m],grp=groups[s];
+    if(A.length===1&&B.length===1)continue;
+    for(let k=0;k<N;k++){const k1=(k+1)%N;
+      if(A.length===1)T.push([A[0],B[k],B[k1],grp]);
+      else if(B.length===1)T.push([A[k],B[0],A[k1],grp]);
+      else{T.push([A[k],B[k],B[k1],grp]);T.push([A[k],B[k1],A[k1],grp]);}
+    }
+  }
+  let vol=0;
+  for(const t of T){const a=V[t[0]],b=V[t[1]],c=V[t[2]];
+    vol+=(a[0]*(b[1]*c[2]-b[2]*c[1])-a[1]*(b[0]*c[2]-b[2]*c[0])+a[2]*(b[0]*c[1]-b[1]*c[0]))/6;}
+  if(vol<0)for(const t of T){const q=t[1];t[1]=t[2];t[2]=q;}
+  return {V,T,volume:Math.abs(vol)};
+}
+function triNormal(a,b,c){
+  const u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],v=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
+  const n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],l=Math.hypot(...n)||1;
+  return n.map(q=>q/l);
+}
+function wallMesh(t,N){
+  const p=profileMM(),outer=p.map(([x,r])=>[x,r+t]).reverse();
+  const loop=[...p,...outer],groups=[];
+  for(let i=0;i<p.length-1;i++)groups.push("bore");
+  groups.push("exit_face");
+  for(let i=0;i<outer.length-1;i++)groups.push("outer");
+  groups.push("inlet_face");
+  return revolve(loop,groups,N);
+}
+function fluidMesh(N){
+  const p=profileMM(),x0=p[0][0],xn=p[p.length-1][0];
+  const loop=[[x0,0],...p,[xn,0]],groups=["inlet"];
+  for(let i=0;i<p.length-1;i++)groups.push("wall");
+  groups.push("outlet","axis");
+  return revolve(loop,groups,N);
+}
+function stlBinary(mesh,header){
+  const n=mesh.T.length,buf=new ArrayBuffer(84+50*n),dv=new DataView(buf);
+  const h=header.slice(0,79);for(let i=0;i<h.length;i++)dv.setUint8(i,h.charCodeAt(i)&127);
+  dv.setUint32(80,n,true);let o=84;
+  for(const t of mesh.T){const a=mesh.V[t[0]],b=mesh.V[t[1]],c=mesh.V[t[2]];
+    for(const q of [triNormal(a,b,c),a,b,c])for(const v of q){dv.setFloat32(o,v,true);o+=4;}
+    dv.setUint16(o,0,true);o+=2;}
+  return buf;
+}
+function stlAsciiNamed(mesh){
+  const f=v=>v.toExponential(7),groups=[...new Set(mesh.T.map(t=>t[3]))];let s="";
+  for(const g of groups){s+=`solid ${g}\n`;
+    for(const t of mesh.T){if(t[3]!==g)continue;const a=mesh.V[t[0]],b=mesh.V[t[1]],c=mesh.V[t[2]],n=triNormal(a,b,c);
+      s+=` facet normal ${n.map(f).join(" ")}\n  outer loop\n`+[a,b,c].map(v=>`   vertex ${v.map(f).join(" ")}\n`).join("")+`  endloop\n endfacet\n`;}
+    s+=`endsolid ${g}\n`;}
+  return s;
+}
+function dxf(lines){
+  // Minimal R12 ASCII DXF: LINE entities on named layers, units mm.
+  const layers=[...new Set(lines.map(l=>l[4]))],f=v=>(Math.abs(v)<1e-12?0:v).toFixed(6);
+  let s="0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1009\n9\n$INSUNITS\n70\n4\n0\nENDSEC\n";
+  s+="0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n70\n"+layers.length+"\n";
+  layers.forEach((L,i)=>{s+=`0\nLAYER\n2\n${L}\n70\n0\n62\n${i%7+1}\n`;});
+  s+="0\nENDTAB\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n";
+  for(const [x1,y1,x2,y2,L] of lines)s+=`0\nLINE\n8\n${L}\n10\n${f(x1)}\n20\n${f(y1)}\n30\n0.0\n11\n${f(x2)}\n21\n${f(y2)}\n31\n0.0\n`;
+  return s+"0\nENDSEC\n0\nEOF\n";
+}
+function chain(pts,layer){const o=[];for(let i=0;i<pts.length-1;i++)o.push([pts[i][0],pts[i][1],pts[i+1][0],pts[i+1][1],layer]);return o;}
+function partDxfLines(t){
+  const p=profileMM(),n=p.length,outer=p.map(([x,r])=>[x,r+t]);
+  return [...chain(p,"WALL_INNER"),[p[n-1][0],p[n-1][1],outer[n-1][0],outer[n-1][1],"EXIT_FACE"],
+    ...chain(outer,"WALL_OUTER"),[p[0][0],p[0][1],outer[0][0],outer[0][1],"INLET_FACE"],
+    [p[0][0]-5,0,p[n-1][0]+5,0,"AXIS"]];
+}
+function fluentDxfLines(t,plenum){
+  const p=profileMM(),n=p.length,x0=p[0][0],xe=p[n-1][0],re=p[n-1][1],L=[];
+  L.push([x0,0,x0,p[0][1],"INLET"]);
+  L.push(...chain(p,"WALL"));
+  if(!plenum){L.push([xe,re,xe,0,"OUTLET"]);L.push([xe,0,x0,0,"AXIS"]);return {lines:L};}
+  const De=2*re,Lp=15*De,Rp=Math.max(5*De,re+t+2*De),xp=xe+Lp;
+  L.push([xe,re,xe,re+t,"WALL"]);              // nozzle lip
+  L.push([xe,re+t,xe,Rp,"FARFIELD"]);           // entrainment boundary beside the nozzle
+  L.push([xe,Rp,xp,Rp,"FARFIELD"]);
+  L.push([xp,Rp,xp,0,"OUTLET"]);
+  L.push([xp,0,x0,0,"AXIS"]);
+  return {lines:L,Lp,Rp};
+}
+function download(name,data,mime){
+  try{
+    const url=URL.createObjectURL(new Blob([data],{type:mime})),a=document.createElement("a");
+    a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+    $("xMsg").textContent=`Downloaded ${name}.`;
+  }catch(e){$("xMsg").textContent="This browser blocked the download. Open the site in a normal browser tab and try again.";}
+}
+function exportOpts(){
+  const t=parseFloat($("xWall").value),N=Math.round(parseFloat($("xSeg").value));
+  if(!(t>0))throw new Error("Wall thickness must be positive.");
+  if(!(N>=24&&N<=360))throw new Error("Facets around must be between 24 and 360.");
+  if(!S.sol)throw new Error("Fix the design errors above before exporting.");
+  return {t,N};
+}
+function baseName(){
+  const g=S.geo,n=g.r.length,Me=S.type==="CD"?machFromArea(g.Ae/g.At,S.g,true):1;
+  return `flowlab_${S.type==="CD"?"CD":"conv"}_M${Me.toFixed(2)}_Dt${(2000*g.r[g.it]).toFixed(2)}mm`;
+}
+function guard(fn){return ()=>{try{fn();}catch(e){$("xMsg").textContent=e.message;}};}
+function xyFile(title,ylabel,key,xs,ys){
+  return `(title "${title}")\n(labels "Position (m)" "${ylabel}")\n\n((xy/key/label "${key}")\n`+
+    xs.map((x,i)=>`${x.toPrecision(8)}\t${ys[i].toPrecision(8)}`).join("\n")+"\n)\n";
+}
+function setupSheet(t,plenum){
+  const s=S.sol,g=S.geo,n=s.M.length,gm=S.g,R=S.R,cp=gm*R/(gm-1),MW=8314.462618/R,th=s.th;
+  const pa=v=>`${v.toFixed(1)} Pa (${(v/PSI).toFixed(3)} psia)`,d=g.r.map(r=>2000*r);
+  const fd=fluentDxfLines(t,plenum),gasName=$("gas").selectedOptions[0].textContent;
+  const lines=[
+    "FLOW LAB -> ANSYS FLUENT SETUP SHEET",`Generated ${new Date().toISOString()} from ${location.href}`,"",
+    "GEOMETRY (2-D axisymmetric, x = axis, y = radius, mm)",
+    `  Inlet D ${d[0].toFixed(3)} | throat D ${d[g.it].toFixed(3)} | exit D ${d[n-1].toFixed(3)} | length ${(1000*g.x[n-1]).toFixed(3)} mm`,
+    `  Area ratio Ae/At ${(g.Ae/g.At).toFixed(4)} | throat Rc/Rt ${S.type==="CD"?$("rc").value:"n/a"} | wall thickness (lip) ${t} mm`,
+    plenum?`  Exhaust plenum: ${fd.Lp.toFixed(1)} mm long x ${fd.Rp.toFixed(1)} mm radius (15 exit diameters long)`:"  No plenum: outlet is the nozzle exit plane",
+    "","GAS (ideal gas, constant properties)",
+    `  ${gasName}: gamma ${gm} | R ${R} J/(kg K) | cp ${cp.toFixed(2)} J/(kg K) | molecular weight ${MW.toFixed(4)} kg/kmol`,
+    "  Density: ideal-gas. Viscosity: Sutherland (air) or constant for other gases. Energy equation: ON.",
+    "","OPERATING CONDITIONS",
+    "  Operating pressure: 0 Pa, so every pressure below is entered as an absolute value.",
+    "","BOUNDARY CONDITIONS (DXF layer -> Fluent zone type)",
+    `  INLET    -> pressure-inlet: gauge total pressure ${pa(S.P0)}, total temperature ${S.T0} K,`,
+    `              supersonic/initial gauge pressure ${pa(s.P[0])} (1-D inlet static pressure)`,
+    `  OUTLET   -> pressure-outlet: gauge pressure ${pa(S.Pb)}, backflow total temperature ${S.T0} K`,
+    plenum?`  FARFIELD -> pressure-outlet: gauge pressure ${pa(S.Pb)}, backflow total temperature 300 K`:null,
+    "  WALL     -> wall: no slip, adiabatic (heat flux 0)",
+    "  AXIS     -> axis",
+    "","SOLVER (recommended starting point)",
+    "  General: density-based, steady, 2D axisymmetric.",
+    "  Viscous: k-omega SST. For an inviscid check against this 1-D model, use Inviscid instead.",
+    "  Mesh: quadrilateral, refined near the throat and walls; y+ about 1 for SST. Refine where the shock is expected.",
+    "  Initialise: hybrid or FMG; start with CFL 1-5 and raise it as residuals fall.",
+    "  Converged when residuals fall about 3 orders and mass flow, inlet minus outlet, is under 0.1% of inlet.",
+    "","1-D MODEL PREDICTION FOR THESE CONDITIONS (ideal, inviscid)",
+    `  Regime: ${REG[s.regime].name}`,
+    `  Thresholds: choking ${pa(th.Pchoke)}`+(S.type==="CD"?` | shock at exit ${pa(th.PshockExit)} | ideal expansion ${pa(th.PeIso)}`:""),
+    `  Mass flow ${(s.mdot*1000).toFixed(4)} g/s (Fluent axisymmetric reports fluxes for the full 360 degrees)`,
+    `  Exit: Mach ${s.M[n-1].toFixed(4)} | static P ${pa(s.P[n-1])} | static T ${s.T[n-1].toFixed(2)} K | V ${s.V[n-1].toFixed(2)} m/s`,
+    s.shock?`  Normal shock at x = ${(s.shock.x*1000).toFixed(3)} mm: Mach ${s.shock.M1.toFixed(3)} -> ${s.shock.M2.toFixed(3)}, total pressure loss ${(100*(1-s.shock.P02/S.P0)).toFixed(2)}%`:null,
+    (s.regime==="over"&&s.P[n-1]/S.Pb<0.4)?"  CAUTION: Pe/Pb < 0.4. Expect wall separation inside the nozzle in a viscous CFD run, which the 1-D model cannot predict.":null,
+    "","WHAT TO COMPARE",
+    "  Load the .xy files (Results > Plots > XY Plot > Load File) and plot wall static pressure",
+    "  and axis Mach number against x. Expect the CFD to differ from the 1-D model through",
+    "  boundary-layer blockage (lower effective area ratio), 2-D effects at the throat, a curved shock,",
+    "  and possible separation. Those differences are what the comparison is for."
+  ].filter(l=>l!==null);
+  return lines.join("\n")+"\n";
+}
+$("xPartStl").addEventListener("click",guard(()=>{const {t,N}=exportOpts(),m=wallMesh(t,N);
+  download(baseName()+"_part.stl",stlBinary(m,"Flow Lab nozzle part, units mm"),"model/stl");
+  $("xMsg").textContent+=` ${m.T.length} triangles, solid volume ${(m.volume/1000).toFixed(3)} cm³.`;}));
+$("xPartDxf").addEventListener("click",guard(()=>{const {t}=exportOpts();download(baseName()+"_halfsection.dxf",dxf(partDxfLines(t)),"application/dxf");}));
+$("xContour").addEventListener("click",guard(()=>{exportOpts();
+  download(baseName()+"_contour.csv","x_mm,r_mm\n"+S.geo.x.map((x,i)=>`${(x*1000).toPrecision(8)},${(S.geo.r[i]*1000).toPrecision(8)}`).join("\n")+"\n","text/csv");}));
+$("xFluentDxf").addEventListener("click",guard(()=>{const {t}=exportOpts(),pl=$("xPlenum").checked;
+  download(baseName()+(pl?"_fluent_domain_plenum.dxf":"_fluent_domain.dxf"),dxf(fluentDxfLines(t,pl).lines),"application/dxf");}));
+$("xFluidStl").addEventListener("click",guard(()=>{const {N}=exportOpts();download(baseName()+"_fluid.stl",stlAsciiNamed(fluidMesh(N)),"model/stl");}));
+$("xSetup").addEventListener("click",guard(()=>{const {t}=exportOpts();download(baseName()+"_fluent_setup.txt",setupSheet(t,$("xPlenum").checked),"text/plain");}));
+$("xXyP").addEventListener("click",guard(()=>{exportOpts();download(baseName()+"_1D_pressure.xy",xyFile("Static Pressure","Static Pressure (Pa)","Flow Lab 1-D",S.geo.x,S.sol.P),"text/plain");}));
+$("xXyM").addEventListener("click",guard(()=>{exportOpts();download(baseName()+"_1D_mach.xy",xyFile("Mach Number","Mach Number","Flow Lab 1-D",S.geo.x,S.sol.M),"text/plain");}));
+$("xFlow").addEventListener("click",guard(()=>{exportOpts();const s=S.sol,geo=S.geo;
+  let txt=`# Flow Lab web | ${REG[s.regime].name} | P0 ${(S.P0/PSI).toFixed(3)} psia | T0 ${S.T0} K | Pb ${(S.Pb/PSI).toFixed(3)} psia | gamma ${S.g} | R ${S.R}\n`;
+  txt+="x_mm,radius_mm,area_mm2,Mach,pressure_psia,temperature_K,velocity_mps,density_kgm3\n";
+  geo.x.forEach((x,i)=>{txt+=[x*1000,geo.r[i]*1000,geo.A[i]*1e6,s.M[i],s.P[i]/PSI,s.T[i],s.V[i],s.rho[i]].map(v=>v.toPrecision(8)).join(",")+"\n";});
+  download(baseName()+"_1D_flow.csv",txt,"text/csv");}));
 
 /* ---------- wiring ---------- */
 function gasChanged(){const custom=$("gas").value==="custom";$("gam").disabled=!custom;$("Rg").disabled=!custom;}
