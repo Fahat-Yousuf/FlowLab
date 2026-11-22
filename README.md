@@ -19,6 +19,10 @@ Design, simulate, check and export supersonic nozzles. A teaching tool that conn
 - **Ideal (first model):** steady quasi-1D isentropic flow of a calorically perfect gas with at most one normal shock. Same equations as the original MATLAB solver.
 - **Realistic:** adds turbulent boundary-layer displacement (Eckert reference temperature), throat-curvature discharge coefficient (Hall), divergence loss, and overexpanded separation (Schmucker or Summerfield). These are engineering estimates; use CFD and experiments to confirm.
 
+## Guides
+- [Code guide](docs/CODE_GUIDE.md): what every function does, how the algorithms work, how to extend Flow Lab.
+- [From Flow Lab to a real rocket nozzle](docs/ROCKET_NOZZLE_GUIDE.md): hot-gas design workflow with a worked example, heat transfer, materials, testing, and the roadmap for Flow Lab.
+
 ## Repository layout
 ```
 index.html          app shell and tab content
@@ -28,6 +32,7 @@ js/app.js           user interface, charts, exports
 js/pylab.js         Python lab (Pyodide)
 python/flowlab/     the same engine as a pip-installable Python package
 python/tests/       Python verification tests
+docs/               code guide and rocket nozzle guide
 ```
 
 ## Python
