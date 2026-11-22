@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flowlab"
+version = "1.0.0"
+description = "Quasi-1D compressible nozzle flow for teaching and design: ideal solver with normal shocks, bell and conical contours, realistic loss and separation estimates."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+dependencies = []
+
+[project.optional-dependencies]
+plot = ["matplotlib"]
+
+[tool.setuptools]
+packages = ["flowlab"]
