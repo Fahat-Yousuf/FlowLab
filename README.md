@@ -2,7 +2,7 @@
 
 An interactive, browser-based simulator for teaching compressible flow through converging and converging–diverging nozzles.
 
-**Live site:** https://fahat-yousuf.github.io/flowlab/
+**Live site:** https://fahat-yousuf.github.io/FlowLab/
 
 ## What students can do
 - Drag the back pressure across colour-coded flow regimes: unchoked, internal normal shock, overexpanded, ideally expanded, underexpanded.
