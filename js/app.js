@@ -50,7 +50,9 @@ function recompute(opts) {
 function setPb(p) { $("PbIn").value = fx(p / PSI, 3); recompute({ segments: false }); }
 function setShape(sh) {
   S.shape = sh;
-  ["shBell", "shCone", "shConv"].forEach(id => $(id).setAttribute("aria-pressed", String($(id).dataset.shape === sh)));
+  if (sh !== "converging") S.lastCD = sh;
+  $("tyCD").setAttribute("aria-pressed", String(sh !== "converging")); $("tyConv").setAttribute("aria-pressed", String(sh === "converging"));
+  ["shBell", "shCone"].forEach(id => $(id).setAttribute("aria-pressed", String($(id).dataset.shape === (S.lastCD || "bell"))));
   document.querySelectorAll(".cdOnly").forEach(e => e.hidden = sh === "converging");
   document.querySelectorAll(".coneOnly").forEach(e => e.hidden = sh !== "conical");
   document.querySelectorAll(".bellOnly").forEach(e => e.hidden = sh !== "bell");
@@ -571,10 +573,12 @@ function wireExports() {
 /* ===================== wiring ===================== */
 window.FlowLabApp = { state: S, recompute };
 function init() {
-  ["shBell", "shCone", "shConv"].forEach(id => $(id).addEventListener("click", () => {
-    const sh = $(id).dataset.shape;
+  const pickShape = sh => {
     if (sh !== "converging" && !(num("De") > num("Dt"))) $("De").value = fx(num("Dt") * 1.6, 2);
-    setShape(sh); recompute(); seedParticles(); }));
+    setShape(sh); recompute(); seedParticles(); };
+  ["shBell", "shCone"].forEach(id => $(id).addEventListener("click", () => pickShape($(id).dataset.shape)));
+  $("tyCD").addEventListener("click", () => pickShape(S.lastCD || "bell"));
+  $("tyConv").addEventListener("click", () => pickShape("converging"));
   ["Din", "Dt", "De", "alpha", "beta", "rc", "bellPct", "thN", "thE", "P0", "T0", "PbIn", "wall", "sf"].forEach(id => $(id).addEventListener("input", () => recompute()));
   ["gas", "mat", "crit"].forEach(id => $(id).addEventListener("change", () => recompute()));
   $("autoAng").addEventListener("change", () => { $("thN").disabled = $("thE").disabled = $("autoAng").checked; recompute(); });

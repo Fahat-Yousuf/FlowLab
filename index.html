@@ -30,11 +30,17 @@
 <div class="app">
 <aside>
   <div class="card">
-    <h3>Nozzle shape</h3>
-    <div class="seg" role="group" aria-label="Nozzle shape">
-      <button id="shBell" data-shape="bell" aria-pressed="true">Bell</button>
-      <button id="shCone" data-shape="conical" aria-pressed="false">Conical</button>
-      <button id="shConv" data-shape="converging" aria-pressed="false">Converging</button>
+    <h3>Nozzle type</h3>
+    <div class="seg" role="group" aria-label="Nozzle type">
+      <button id="tyCD" aria-pressed="true">Converging–diverging</button>
+      <button id="tyConv" aria-pressed="false">Converging only</button>
+    </div>
+    <div class="cdOnly stack">
+      <span class="hint">Diverging wall shape</span>
+      <div class="seg" role="group" aria-label="Diverging wall shape">
+        <button id="shBell" data-shape="bell" aria-pressed="true">Bell (Rao)</button>
+        <button id="shCone" data-shape="conical" aria-pressed="false">Conical</button>
+      </div>
     </div>
     <div class="field"><label for="Din">Inlet diameter (mm)</label><input id="Din" type="number" step="0.5" value="30"></div>
     <div class="field"><label for="Dt">Throat diameter (mm)</label><input id="Dt" type="number" step="0.1" value="10"></div>
