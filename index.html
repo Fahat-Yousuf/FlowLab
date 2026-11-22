@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flow Lab Nozzle Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+/* Layout idea: a lab bench. Controls on the left, the nozzle and its back-pressure
+   "regime track" as the hero, then plots, explanation, lessons and design. */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --ink:#132030; --muted:#5a6a7b; --line:#d5dce4;
+  --accent:#1d5fc4; --shock:#d9480f;
+  --r-sub:#5b7fa6; --r-shock:#c92a2a; --r-over:#d98a00; --r-ideal:#2b8a3e; --r-under:#7048e8;
+  --display:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d1520; --surface:#152131; --ink:#e3eaf2; --muted:#93a4b6; --line:#26364a;
+    --accent:#6ea8ff; --shock:#ff8a4c;
+    --r-sub:#86a8cf; --r-shock:#ff6b6b; --r-over:#ffc046; --r-ideal:#5fd37a; --r-under:#a991ff;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1520; --surface:#152131; --ink:#e3eaf2; --muted:#93a4b6; --line:#26364a;
+  --accent:#6ea8ff; --shock:#ff8a4c;
+  --r-sub:#86a8cf; --r-shock:#ff6b6b; --r-over:#ffc046; --r-ideal:#5fd37a; --r-under:#a991ff;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body)}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:.01em}
+h1{font-size:26px;font-weight:700}
+h2{font-size:19px;font-weight:600}
+h3{font-size:16px;font-weight:600}
+.num,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+header.top{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:baseline;padding:18px 20px 10px}
+header.top p{margin:0;color:var(--muted);max-width:70ch}
+.app{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;padding:0 20px 28px}
+@media (max-width:900px){.app{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+aside{display:flex;flex-direction:column;gap:12px;align-self:start}
+@media (min-width:901px){aside{position:sticky;top:12px}}
+aside .card{display:flex;flex-direction:column;gap:8px}
+.field{display:grid;grid-template-columns:1fr 108px;gap:8px;align-items:center}
+.field label{font-size:13px;color:var(--muted)}
+input[type=number],select{width:100%;font:14px var(--mono);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:5px 7px}
+select{font-family:var(--body)}
+input:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:0;background:var(--bg);color:var(--ink);font:500 13px var(--body);padding:7px 4px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.btn{font:600 13px var(--body);border:1px solid var(--accent);color:var(--accent);background:transparent;border-radius:6px;padding:7px 11px;cursor:pointer}
+.btn.solid{background:var(--accent);color:#fff}
+.btn:hover{filter:brightness(1.08)}
+.hint{font-size:12px;color:var(--muted);margin:0}
+main{display:flex;flex-direction:column;gap:16px;min-width:0}
+.status{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:8px;font:600 14px var(--display);padding:5px 12px;border-radius:999px;color:#fff;background:var(--r-sub)}
+.chip::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.85}
+.tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+@media (max-width:700px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tile{border-left:3px solid var(--accent);padding:2px 10px}
+.tile .k{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.tile .v{font:600 20px var(--mono);font-variant-numeric:tabular-nums}
+.tile .u{font-size:12px;color:var(--muted)}
+.vizwrap{position:relative}
+canvas#viz{width:100%;height:300px;display:block;border-radius:6px;background:var(--bg);cursor:crosshair;touch-action:none}
+.probe{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font:12px/1.45 var(--mono);display:none;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.15)}
+.vizbar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-top:8px}
+.legend{display:flex;align-items:center;gap:8px;font:12px var(--mono);color:var(--muted)}
+.legend canvas{width:160px;height:10px;border-radius:3px}
+/* Back-pressure regime track */
+.pbhead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:baseline}
+.pbhead .val{font:600 22px var(--mono)}
+.track{position:relative;height:44px;margin-top:8px}
+.track .bands{position:absolute;left:0;right:0;top:14px;height:16px;display:flex;border-radius:4px;overflow:hidden}
+.track .bands div{flex:1;opacity:.85}
+.track input[type=range]{position:absolute;inset:0;width:100%;margin:0;background:transparent;-webkit-appearance:none;appearance:none;cursor:pointer}
+.track input[type=range]::-webkit-slider-runnable-track{height:44px;background:transparent}
+.track input[type=range]::-moz-range-track{height:44px;background:transparent}
+.track input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:6px;height:44px;background:var(--ink);border-radius:3px;border:2px solid var(--surface)}
+.track input[type=range]::-moz-range-thumb{width:6px;height:40px;background:var(--ink);border-radius:3px;border:2px solid var(--surface)}
+.bandlabels{display:flex;font-size:12px;color:var(--muted);margin-top:2px}
+.bandlabels div{flex:1;text-align:center;padding:0 2px}
+.bandlabels b{display:block;font:600 12px var(--display);color:var(--ink)}
+.ticks{position:relative;height:16px;font:11px var(--mono);color:var(--muted)}
+.ticks span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.jumps{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.jumps button{font:500 12px var(--body);border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:4px 10px;cursor:pointer}
+.jumps button span{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.plots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:1200px){.plots{grid-template-columns:1fr 1fr}}
+@media (max-width:700px){.plots{grid-template-columns:1fr}}
+.plot{height:280px}
+.plothead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
+.plothead select{width:auto}
+.two{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px}
+@media (max-width:1100px){.two{grid-template-columns:1fr}}
+.explain p{margin:.5em 0;max-width:68ch}
+.explain .warn{border-left:3px solid var(--r-over);padding:6px 10px;background:var(--bg);border-radius:0 6px 6px 0}
+.explain .shockbox{border-left:3px solid var(--shock);padding:6px 10px;background:var(--bg);border-radius:0 6px 6px 0}
+.lessons{display:flex;flex-direction:column;gap:10px}
+.lesson{border:1px solid var(--line);border-radius:7px;padding:10px 12px}
+.lesson[data-active="true"]{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.lesson header{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.lesson ol{margin:8px 0;padding-left:20px}
+.lesson li{margin:3px 0}
+details{margin-top:6px}
+summary{cursor:pointer;font-weight:600;color:var(--accent)}
+details p{margin:6px 0 0}
+.design .row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.design .row > div{display:flex;flex-direction:column;gap:4px;min-width:140px}
+.design label{font-size:13px;color:var(--muted)}
+table.out{border-collapse:collapse;width:100%;margin-top:10px;font-size:14px}
+table.out td{padding:5px 6px;border-bottom:1px solid var(--line)}
+table.out td:last-child{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.error{border:1px solid var(--r-shock);color:var(--r-shock);border-radius:6px;padding:8px 12px;display:none}
+.copyrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+footer{padding:0 20px 24px;color:var(--muted);font-size:13px;max-width:900px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Flow Lab Nozzle Explorer</h1>
+  <p>Drag the back pressure and watch a nozzle choke, shock and expand. Ideal quasi-1D gas dynamics, the same equations as the Flow Lab MATLAB solver.</p>
+</header>
+
+<div class="app">
+<aside>
+  <div class="card">
+    <h3>Nozzle</h3>
+    <div class="seg" role="group" aria-label="Geometry">
+      <button id="gCD" aria-pressed="true">Converging–diverging</button>
+      <button id="gC" aria-pressed="false">Converging only</button>
+    </div>
+    <div class="field"><label for="Din">Inlet diameter (mm)</label><input id="Din" type="number" step="0.5" value="20"></div>
+    <div class="field"><label for="Dt">Throat diameter (mm)</label><input id="Dt" type="number" step="0.1" value="10"></div>
+    <div class="field cdOnly"><label for="De">Exit diameter (mm)</label><input id="De" type="number" step="0.1" value="16.24"></div>
+    <div class="field"><label for="alpha">Converging half-angle (°)</label><input id="alpha" type="number" step="1" value="20"></div>
+    <div class="field cdOnly"><label for="beta">Diverging half-angle (°)</label><input id="beta" type="number" step="1" value="10"></div>
+    <div class="field cdOnly"><label for="rc">Throat Rc/Rt (0 = sharp)</label><input id="rc" type="number" step="0.25" min="0" value="1.5"></div>
+    <p class="hint num" id="geoInfo"></p>
+  </div>
+  <div class="card">
+    <h3>Gas and supply</h3>
+    <div class="field"><label for="gas">Gas</label>
+      <select id="gas">
+        <option value="1.4,287.05">Air</option>
+        <option value="1.4,296.8">Nitrogen</option>
+        <option value="1.667,2077.1">Helium</option>
+        <option value="1.405,4124">Hydrogen</option>
+        <option value="1.395,259.84">Oxygen</option>
+        <option value="1.289,188.9">CO₂</option>
+        <option value="custom">Custom</option>
+      </select></div>
+    <div class="field"><label for="gam">γ (ratio of specific heats)</label><input id="gam" type="number" step="0.01" value="1.4" disabled></div>
+    <div class="field"><label for="Rg">R (J/kg·K)</label><input id="Rg" type="number" step="1" value="287.05" disabled></div>
+    <div class="field"><label for="P0">Supply total pressure P₀ (psia)</label><input id="P0" type="number" step="1" value="100"></div>
+    <div class="field"><label for="T0">Supply total temperature T₀ (K)</label><input id="T0" type="number" step="5" value="300"></div>
+  </div>
+  <div class="card">
+    <h3>Export to Flow Lab / CAD</h3>
+    <div class="copyrow">
+      <button class="btn" id="copyFlow">Copy flow table (CSV)</button>
+      <button class="btn" id="copyContour">Copy wall contour (CSV)</button>
+    </div>
+    <p class="hint" id="copyMsg">Paste into a spreadsheet, or save as .csv. STEP export lives in the MATLAB app.</p>
+  </div>
+</aside>
+
+<main>
+  <div class="error" id="err" role="alert"></div>
+
+  <section class="card">
+    <div class="status">
+      <span class="chip" id="chip">Regime</span>
+      <span class="hint" id="chipSub"></span>
+    </div>
+    <div class="tiles" style="margin-top:12px">
+      <div class="tile"><div class="k">Exit Mach</div><div class="v" id="tM">–</div></div>
+      <div class="tile"><div class="k">Exit velocity</div><div class="v" id="tV">–</div><div class="u">m/s</div></div>
+      <div class="tile"><div class="k">Mass flow</div><div class="v" id="tm">–</div><div class="u">g/s</div></div>
+      <div class="tile"><div class="k">Exit pressure</div><div class="v" id="tP">–</div><div class="u">psia</div></div>
+      <div class="tile"><div class="k">Ideal thrust</div><div class="v" id="tF">–</div><div class="u">N</div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="pbhead">
+      <h2><label for="pb">Back pressure P<sub>b</sub></label></h2>
+      <div><span class="val" id="pbVal">–</span> <span class="hint">psia · <span id="pbRatio" class="num"></span></span></div>
+    </div>
+    <div class="track">
+      <div class="bands" id="bands"></div>
+      <input type="range" id="pb" min="0" max="1000" step="1" value="700" aria-describedby="pbVal">
+    </div>
+    <div class="ticks" id="ticks"></div>
+    <div class="bandlabels" id="bandlabels"></div>
+    <div class="jumps" id="jumps"></div>
+    <div class="field" style="max-width:300px;margin-top:10px"><label for="pbNum">Type an exact P<sub>b</sub> (psia)</label><input id="pbNum" type="number" step="0.1"></div>
+  </section>
+
+  <section class="card">
+    <div class="vizwrap">
+      <canvas id="viz" aria-label="Animated nozzle flow coloured by the selected property"></canvas>
+      <div class="probe" id="probe"></div>
+    </div>
+    <div class="vizbar">
+      <div class="field" style="grid-template-columns:auto 150px"><label for="colorBy">Colour by</label>
+        <select id="colorBy"><option value="M">Mach number</option><option value="P">Pressure</option><option value="T">Temperature</option><option value="V">Velocity</option><option value="rho">Density</option></select></div>
+      <div class="legend"><span id="legMin" class="num"></span><canvas id="legCanvas" width="160" height="10"></canvas><span id="legMax" class="num"></span></div>
+      <button class="btn" id="playBtn">Pause flow</button>
+      <span class="hint">Hover or touch the nozzle to probe local values. Particle speed is scaled, not real time.</span>
+    </div>
+  </section>
+
+  <section class="plots">
+    <div class="card"><div class="plothead"><h3>Wall pressure P/P₀</h3></div><div class="plot" id="plotP"></div></div>
+    <div class="card"><div class="plothead"><h3 id="p2title">Along the nozzle</h3>
+      <select id="plot2Var" aria-label="Second plot variable"><option value="M">Mach number</option><option value="T">Temperature</option><option value="V">Velocity</option><option value="rho">Density</option></select></div>
+      <div class="plot" id="plot2"></div></div>
+    <div class="card"><div class="plothead"><h3>Mass flow vs back pressure</h3></div><div class="plot" id="plotM"></div></div>
+  </section>
+
+  <div class="two">
+    <section class="card explain">
+      <h2>What is happening right now</h2>
+      <div id="explain"></div>
+    </section>
+    <section class="card">
+      <h2>Guided lessons</h2>
+      <p class="hint" style="margin:4px 0 10px">Each lesson sets up the nozzle for you. Predict first, then move the slider and check.</p>
+      <div class="lessons" id="lessons"></div>
+    </section>
+  </div>
+
+  <section class="card design">
+    <h2>Design a nozzle backwards</h2>
+    <p class="hint" style="margin:4px 0 10px">Choose a target. The calculator sizes the nozzle for ideal, shock-free supersonic flow at the current P₀, T₀ and gas.</p>
+    <div class="row">
+      <div><label for="dMode">Target</label>
+        <select id="dMode"><option value="M">Exit Mach number</option><option value="Pe">Exit pressure (psia)</option><option value="mdot">Mass flow (g/s)</option></select></div>
+      <div><label for="dVal">Value</label><input id="dVal" type="number" step="0.1" value="3"></div>
+      <div id="dMachWrap" style="display:none"><label for="dMach">Exit Mach for that throat</label><input id="dMach" type="number" step="0.1" value="2.5"></div>
+      <button class="btn solid" id="dApply">Apply to nozzle and set P<sub>b</sub> = design P<sub>e</sub></button>
+    </div>
+    <table class="out" id="dOut"></table>
+  </section>
+</main>
+</div>
+<footer>
+  Model: steady quasi-one-dimensional flow of a calorically perfect gas with isentropic branches and at most one normal shock. It does not model boundary layers, flow separation, oblique shocks, real-gas effects or condensation. Flow outside the nozzle is drawn schematically. Use it to learn the trends, and use experiments to learn how far real nozzles depart from them.
+</footer>
+
+<script>
+"use strict";
+const PSI=6894.757293;
+const $=id=>document.getElementById(id);
+
+/* ---------- gas dynamics (port of FlowLab_IdealGasNozzleSolver.m) ---------- */
+function areaMach(M,g){return (1/M)*Math.pow((2/(g+1))*(1+(g-1)*M*M/2),(g+1)/(2*(g-1)));}
+function machFromArea(ar,g,sup){
+  if(ar<=1+1e-12) return 1;
+  let lo,hi;
+  if(sup){lo=1;hi=2;while(areaMach(hi,g)<ar)hi*=2;
+    for(let k=0;k<70;k++){const m=(lo+hi)/2; if(areaMach(m,g)<ar)lo=m; else hi=m;}}
+  else{lo=1e-12;hi=1;
+    for(let k=0;k<70;k++){const m=(lo+hi)/2; if(areaMach(m,g)>ar)lo=m; else hi=m;}}
+  return (lo+hi)/2;
+}
+function interp(xs,ys,x){
+  if(x<=xs[0])return ys[0]; const n=xs.length; if(x>=xs[n-1])return ys[n-1];
+  let lo=0,hi=n-1; while(hi-lo>1){const m=(lo+hi)>>1; if(xs[m]<=x)lo=m; else hi=m;}
+  return ys[lo]+(ys[hi]-ys[lo])*(x-xs[lo])/(xs[hi]-xs[lo]);
+}
+const sind=a=>Math.sin(a*Math.PI/180), cosd=a=>Math.cos(a*Math.PI/180), tand=a=>Math.tan(a*Math.PI/180);
+function linspace(a,b,n){const o=[];for(let i=0;i<n;i++)o.push(n===1?a:a+(b-a)*i/(n-1));return o;}
+
+/* Port of FlowLab_CDContour.m (metres) */
+function cdContour(di,dt,de,alpha,beta,rc,n){
+  const ri=di/2,rt=dt/2,re=de/2;
+  if(rc===0){
+    const L1=(di-dt)/2/tand(alpha),L2=(de-dt)/2/tand(beta);
+    const n1=Math.max(20,Math.round(n*L1/(L1+L2))),n2=Math.max(20,n-n1+1);
+    const x=linspace(0,L1,n1),r=linspace(ri,rt,n1);
+    const xd=linspace(0,L2,n2),rd=linspace(rt,re,n2);
+    for(let i=1;i<n2;i++){x.push(L1+xd[i]);r.push(rd[i]);}
+    return {x,r};
+  }
+  const Rc=rc*rt, r1=rt+Rc*(1-cosd(alpha)), r2=rt+Rc*(1-cosd(beta));
+  if(r1>=ri) throw new Error("Throat Rc/Rt is too large for the converging section. Reduce Rc/Rt or the converging angle, or enlarge the inlet.");
+  if(r2>=re) throw new Error("Throat Rc/Rt is too large for the diverging section. Reduce Rc/Rt or the diverging angle, or enlarge the exit.");
+  const Lc=(ri-r1)/tand(alpha), xt=Lc+Rc*sind(alpha), x2=xt+Rc*sind(beta), xe=x2+(re-r2)/tand(beta);
+  const L=[Lc,Rc*sind(alpha),Rc*sind(beta),xe-x2], mins=[15,8,8,15];
+  const k=L.map((l,i)=>Math.max(mins[i],Math.round(n*l/xe)));
+  const x=[],r=[];
+  linspace(0,Lc,k[0]).forEach(xx=>{x.push(xx);r.push(ri-(ri-r1)*xx/Lc);});
+  linspace(alpha,0,k[1]).slice(1).forEach(t=>{x.push(xt-Rc*sind(t));r.push(rt+Rc*(1-cosd(t)));});
+  linspace(0,beta,k[2]).slice(1).forEach(t=>{x.push(xt+Rc*sind(t));r.push(rt+Rc*(1-cosd(t)));});
+  linspace(x2,xe,k[3]).slice(1).forEach(xx=>{x.push(xx);r.push(r2+(re-r2)*(xx-x2)/(xe-x2));});
+  return {x,r};
+}
+
+function thresholds(geo,g,P0){
+  const c=(g-1)/2,e=g/(g-1), ar=geo.Ae/geo.At;
+  const Msub=machFromArea(ar,g,false), Pchoke=P0/Math.pow(1+c*Msub*Msub,e);
+  if(geo.type==="C") return {Pchoke,Msub};
+  const Msup=machFromArea(ar,g,true), PeIso=P0/Math.pow(1+c*Msup*Msup,e);
+  const PshockExit=PeIso*(1+2*g/(g+1)*(Msup*Msup-1));
+  return {Pchoke,Msub,Msup,PeIso,PshockExit};
+}
+
+function shockExitPressure(xs,geo,g,P0){
+  const c=(g-1)/2,e=g/(g-1);
+  const As=interp(geo.x,geo.A,xs), M1=machFromArea(As/geo.At,g,true);
+  const M2=Math.sqrt((1+c*M1*M1)/(g*M1*M1-c));
+  const P1=P0/Math.pow(1+c*M1*M1,e), P2=P1*(1+2*g/(g+1)*(M1*M1-1)), P02=P2*Math.pow(1+c*M2*M2,e);
+  const Ast2=As/areaMach(M2,g), Me=machFromArea(geo.Ae/Ast2,g,false);
+  return {Pe:P02/Math.pow(1+c*Me*Me,e),P02,M1,M2,P1,P2,Ast2};
+}
+
+function solve(geo,P0,T0,Pb,g,R){
+  const n=geo.A.length,c=(g-1)/2,e=g/(g-1), th=thresholds(geo,g,P0);
+  const M=new Array(n), P0p=new Array(n).fill(P0);
+  let regime,shock=null;
+  if(Pb>=th.Pchoke*(1-1e-10)){
+    const Me=Math.sqrt(2/(g-1)*(Math.pow(P0/Pb,(g-1)/g)-1)), Ast=geo.Ae/areaMach(Me,g);
+    for(let j=0;j<n;j++)M[j]=machFromArea(geo.A[j]/Ast,g,false);
+    regime="sub";
+  }else if(geo.type==="C"){
+    for(let j=0;j<n;j++)M[j]=machFromArea(geo.A[j]/geo.At,g,false);
+    regime="chokedC";
+  }else if(Pb>th.PshockExit*(1+1e-10)){
+    let lo=geo.x[geo.it],hi=geo.x[n-1];
+    for(let k=0;k<75;k++){const mid=(lo+hi)/2; if(shockExitPressure(mid,geo,g,P0).Pe>Pb)lo=mid; else hi=mid;}
+    const xs=(lo+hi)/2, s=shockExitPressure(xs,geo,g,P0);
+    for(let j=0;j<n;j++){
+      if(j<=geo.it)M[j]=machFromArea(geo.A[j]/geo.At,g,false);
+      else if(geo.x[j]<xs)M[j]=machFromArea(geo.A[j]/geo.At,g,true);
+      else{M[j]=machFromArea(geo.A[j]/s.Ast2,g,false);P0p[j]=s.P02;}
+    }
+    shock={x:xs,...s}; regime="shock";
+  }else{
+    for(let j=0;j<n;j++)M[j]=machFromArea(geo.A[j]/geo.At,g,j>geo.it);
+    regime=Pb>th.PeIso*1.01?"over":(Pb<th.PeIso*0.99?"under":"ideal");
+  }
+  const T=M.map(m=>T0/(1+c*m*m)), P=M.map((m,j)=>P0p[j]/Math.pow(1+c*m*m,e));
+  const rho=P.map((p,j)=>p/(R*T[j])), V=M.map((m,j)=>m*Math.sqrt(g*R*T[j]));
+  const mdot=rho[0]*geo.A[0]*V[0];
+  const F=mdot*V[n-1]+(P[n-1]-Pb)*geo.Ae;
+  return {M,P,T,rho,V,mdot,F,regime,shock,th,Pb};
+}
+function mdotAt(geo,P0,T0,Pb,g,R,th){
+  const c=(g-1)/2,e=g/(g-1), K=P0*Math.sqrt(g/(R*T0))*Math.pow(2/(g+1),(g+1)/(2*(g-1)));
+  if(Pb>=th.Pchoke){const Me=Math.sqrt(2/(g-1)*(Math.pow(P0/Pb,(g-1)/g)-1));return K*geo.Ae/areaMach(Me,g);}
+  return K*geo.At;
+}
+
+/* ---------- state ---------- */
+const S={type:"CD",Pb:90*PSI,geo:null,sol:null,g:1.4,R:287.05,P0:100*PSI,T0:300,playing:true,particles:[],segments:[],lesson:-1};
+const REG={
+  sub:{name:"Subsonic, unchoked",col:"--r-sub"},
+  chokedC:{name:"Choked, sonic exit",col:"--r-under"},
+  shock:{name:"Normal shock inside the nozzle",col:"--r-shock"},
+  over:{name:"Overexpanded",col:"--r-over"},
+  ideal:{name:"Ideally expanded",col:"--r-ideal"},
+  under:{name:"Underexpanded",col:"--r-under"}
+};
+const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function readInputs(){
+  const v=id=>parseFloat($(id).value);
+  const gasSel=$("gas").value;
+  if(gasSel!=="custom"){const [g,R]=gasSel.split(",").map(Number);$("gam").value=g;$("Rg").value=R;}
+  const g=v("gam"),R=v("Rg"),P0=v("P0")*PSI,T0=v("T0");
+  const di=v("Din")/1000,dt=v("Dt")/1000,de=v("De")/1000,a=v("alpha"),b=v("beta"),rc=v("rc");
+  if(![g,R,P0,T0,di,dt,a].every(Number.isFinite)) throw new Error("Fill in every field with a number.");
+  if(!(g>1&&g<2)) throw new Error("γ must be between 1 and 2.");
+  if(!(R>0&&P0>0&&T0>0)) throw new Error("R, P₀ and T₀ must be positive.");
+  if(!(a>0&&a<90)) throw new Error("The converging half-angle must be between 0° and 90°.");
+  if(!(di>dt&&dt>0)) throw new Error("The inlet diameter must be larger than the throat diameter.");
+  let c;
+  if(S.type==="CD"){
+    if(![de,b,rc].every(Number.isFinite)) throw new Error("Fill in every field with a number.");
+    if(!(de>dt)) throw new Error("A converging–diverging nozzle needs an exit diameter larger than the throat.");
+    if(!(b>0&&b<90)) throw new Error("The diverging half-angle must be between 0° and 90°.");
+    if(rc<0) throw new Error("Throat Rc/Rt cannot be negative.");
+    c=cdContour(di,dt,de,a,b,rc,220);
+  }else{
+    const L=(di-dt)/2/tand(a), x=linspace(0,L,160); c={x,r:x.map(xx=>di/2-(di-dt)/2*xx/L)};
+  }
+  const A=c.r.map(r=>Math.PI*r*r); let it=0; A.forEach((aa,i)=>{if(aa<A[it])it=i;});
+  S.geo={type:S.type,x:c.x,r:c.r,A,it,At:A[it],Ae:A[A.length-1]};
+  S.g=g;S.R=R;S.P0=P0;S.T0=T0;
+  const L=c.x[c.x.length-1];
+  $("geoInfo").textContent=S.type==="CD"
+    ?`Length ${(L*1000).toFixed(1)} mm · Ae/At ${(S.geo.Ae/S.geo.At).toFixed(3)} · design Mach ${machFromArea(S.geo.Ae/S.geo.At,g,true).toFixed(3)}`
+    :`Length ${(L*1000).toFixed(1)} mm · exit = throat`;
+}
+
+/* ---------- regime track: equal slider width per regime ---------- */
+function buildSegments(){
+  const th=S.sol?S.sol.th:thresholds(S.geo,S.g,S.P0), P0=S.P0;
+  if(S.type==="C"){
+    S.segments=[
+      {lo:th.Pchoke*0.15,hi:th.Pchoke,key:"chokedC",label:"Choked",sub:"exit M = 1, flow fixed",geo:true},
+      {lo:th.Pchoke,hi:P0*0.999,key:"sub",label:"Unchoked",sub:"subsonic everywhere"}];
+  }else{
+    S.segments=[
+      {lo:th.PeIso*0.2,hi:th.PeIso,key:"under",label:"Underexpanded",sub:"Pe > Pb",geo:true},
+      {lo:th.PeIso,hi:th.PshockExit,key:"over",label:"Overexpanded",sub:"Pe < Pb, shocks outside",geo:true},
+      {lo:th.PshockExit,hi:th.Pchoke,key:"shock",label:"Shock inside",sub:"normal shock in diverging part"},
+      {lo:th.Pchoke,hi:P0*0.999,key:"sub",label:"Unchoked",sub:"subsonic, venturi-like"}];
+  }
+  const bands=$("bands"),labels=$("bandlabels"),ticks=$("ticks"),jumps=$("jumps");
+  bands.innerHTML="";labels.innerHTML="";ticks.innerHTML="";jumps.innerHTML="";
+  const nseg=S.segments.length;
+  S.segments.forEach((s,i)=>{
+    const d=document.createElement("div");d.style.background=`var(${REG[s.key].col})`;bands.appendChild(d);
+    const l=document.createElement("div");l.innerHTML=`<b>${s.label}</b>${s.sub}`;labels.appendChild(l);
+    if(i>0){const t=document.createElement("span");t.style.left=(100*i/nseg)+"%";t.textContent=(s.lo/PSI).toFixed(2);ticks.appendChild(t);}
+  });
+  const jumpList=S.type==="C"
+    ?[["sub","Unchoked",(th.Pchoke+P0)/2],["chokedC","Just choked",th.Pchoke*0.98],["chokedC","Deeply choked",th.Pchoke*0.4]]
+    :[["sub","Unchoked",(th.Pchoke+P0)/2],["shock","Shock near throat",th.Pchoke-(th.Pchoke-th.PshockExit)*0.1],
+      ["shock","Shock mid-nozzle",(th.Pchoke+th.PshockExit)/2],["shock","Shock at exit",th.PshockExit*1.0005],
+      ["over","Overexpanded",Math.sqrt(th.PeIso*th.PshockExit)],["ideal","Ideal expansion",th.PeIso],["under","Underexpanded",th.PeIso*0.45]];
+  jumpList.forEach(([k,txt,p])=>{
+    const b=document.createElement("button");b.innerHTML=`<span style="background:var(${REG[k].col})"></span>${txt}`;
+    b.addEventListener("click",()=>{S.Pb=p;sync();});jumps.appendChild(b);
+  });
+}
+function pbToSlider(Pb){
+  const n=S.segments.length;
+  for(let i=0;i<n;i++){const s=S.segments[i];
+    if(Pb<=s.hi||i===n-1){
+      const p=Math.min(Math.max(Pb,s.lo),s.hi);
+      const f=s.geo?Math.log(p/s.lo)/Math.log(s.hi/s.lo):(p-s.lo)/(s.hi-s.lo);
+      return 1000*(i+f)/n;}
+  }
+  return 1000;
+}
+function sliderToPb(v){
+  const n=S.segments.length, pos=v/1000*n, i=Math.min(n-1,Math.floor(pos)), f=pos-i, s=S.segments[i];
+  return s.geo?s.lo*Math.pow(s.hi/s.lo,f):s.lo+(s.hi-s.lo)*f;
+}
+
+/* ---------- main update ---------- */
+function recompute(rebuild){
+  try{
+    readInputs();
+    if(S.Pb>=S.P0) S.Pb=S.P0*0.98;
+    S.sol=solve(S.geo,S.P0,S.T0,S.Pb,S.g,S.R);
+    $("err").style.display="none";
+    if(rebuild!==false) buildSegments();
+    sync(true);
+  }catch(e){
+    $("err").textContent=e.message;$("err").style.display="block";
+  }
+}
+function sync(already){
+  if(!already){S.sol=solve(S.geo,S.P0,S.T0,S.Pb,S.g,S.R);}
+  $("pb").value=pbToSlider(S.Pb);
+  $("pbVal").textContent=(S.Pb/PSI).toFixed(2);
+  $("pbRatio").textContent="Pb/P₀ = "+(S.Pb/S.P0).toFixed(4);
+  if(document.activeElement!==$("pbNum")) $("pbNum").value=(S.Pb/PSI).toFixed(2);
+  updateSummary();updateExplain();scheduleCharts();updateDesign();
+}
+
+function updateSummary(){
+  const s=S.sol,n=s.M.length,r=REG[s.regime];
+  const chip=$("chip");chip.textContent=r.name;chip.style.background=`var(${r.col})`;
+  const th=s.th;
+  $("chipSub").textContent=S.type==="CD"
+    ?`Thresholds: choke ${(th.Pchoke/PSI).toFixed(2)} · shock at exit ${(th.PshockExit/PSI).toFixed(2)} · ideal ${(th.PeIso/PSI).toFixed(2)} psia`
+    :`Choking at Pb ≤ ${(th.Pchoke/PSI).toFixed(2)} psia (Pb/P₀ = ${(th.Pchoke/S.P0).toFixed(3)})`;
+  $("tM").textContent=s.M[n-1].toFixed(3);
+  $("tV").textContent=s.V[n-1].toFixed(1);
+  $("tm").textContent=(s.mdot*1000).toFixed(2);
+  $("tP").textContent=(s.P[n-1]/PSI).toFixed(2);
+  $("tF").textContent=s.F.toFixed(2);
+}
+
+function fmt(v,d){return Number(v).toFixed(d);}
+function updateExplain(){
+  const s=S.sol,n=s.M.length,th=s.th,g=S.g,P0=S.P0,Pe=s.P[n-1],Pb=S.Pb,it=S.geo.it;
+  let h="";
+  const crit=Math.pow(2/(g+1),g/(g-1));
+  switch(s.regime){
+    case "sub":
+      h=`<p>The back pressure is too high for the flow to reach Mach 1 anywhere. The flow speeds up toward the throat (M = <span class="num">${fmt(s.M[it],3)}</span>)`+
+        (S.type==="CD"?` and slows down again in the diverging section, like a venturi meter. Pressure recovers to <span class="num">${fmt(Pe/PSI,2)}</span> psia at the exit.`:`, which is also the exit.`)+`</p>`+
+        `<p>Lower P<sub>b</sub> and the mass flow rises. Below <span class="num">${fmt(th.Pchoke/PSI,2)}</span> psia the throat reaches Mach 1 and the nozzle <b>chokes</b>.</p>`;
+      break;
+    case "chokedC":
+      h=`<p>The exit is the throat and it is sonic: M = 1. The mass flow is fixed at <span class="num">${fmt(s.mdot*1000,2)}</span> g/s. Lowering P<sub>b</sub> further cannot raise it, because pressure changes travel at the speed of sound and cannot move upstream against sonic flow.</p>`+
+        `<p>The exit pressure stays at P* = ${fmt(crit,4)}·P₀ = <span class="num">${fmt(Pe/PSI,2)}</span> psia, above P<sub>b</sub>, so the jet keeps expanding outside the nozzle (underexpanded). A converging nozzle can never deliver supersonic exit flow. For that you need a diverging section.</p>`;
+      break;
+    case "shock":{
+      const sh=s.shock,L=S.geo.x[n-1];
+      h=`<p>The throat is choked, so the mass flow is fixed at <span class="num">${fmt(s.mdot*1000,2)}</span> g/s. After the throat the flow goes supersonic, but the back pressure is too high to allow fully supersonic flow out of the nozzle, so a <b>normal shock</b> stands inside.</p>`+
+        `<div class="shockbox"><p class="num" style="margin:0">Shock at x = ${fmt(sh.x*1000,2)} mm (${fmt(100*sh.x/L,1)}% of length)<br>Mach ${fmt(sh.M1,3)} → ${fmt(sh.M2,3)} · P ${fmt(sh.P1/PSI,2)} → ${fmt(sh.P2/PSI,2)} psia<br>Total pressure lost: ${fmt(100*(1-sh.P02/P0),1)}%</p></div>`+
+        `<p>Behind the shock the flow is subsonic and slows down as the area grows, so pressure rises to match P<sub>b</sub> at the exit. Lower P<sub>b</sub> and the shock moves downstream, where the Mach number ahead of it is higher, so it gets stronger. It reaches the exit at P<sub>b</sub> = <span class="num">${fmt(th.PshockExit/PSI,2)}</span> psia.</p>`;
+      break;}
+    case "over":
+      h=`<p>Inside the nozzle the flow is now fully supersonic and shock-free, reaching Mach <span class="num">${fmt(s.M[n-1],3)}</span>. Its exit pressure, <span class="num">${fmt(Pe/PSI,2)}</span> psia, is <b>below</b> the back pressure, so oblique shocks outside the exit squeeze the jet up to P<sub>b</sub>. The 1-D model does not resolve them, and the plume is drawn as a sketch.</p>`+
+        `<p>Nothing inside the nozzle changes as you move P<sub>b</sub> in this range, because supersonic flow cannot "hear" downstream conditions.</p>`;
+      if(Pe/Pb<0.4) h+=`<p class="warn">Real-world caution: P<sub>e</sub>/P<sub>b</sub> = ${fmt(Pe/Pb,3)}, below about 0.4 (the Summerfield rule of thumb). A real nozzle would probably separate from the wall inside the diverging section, and measured wall pressures near the exit would read higher than this ideal curve.</p>`;
+      break;
+    case "ideal":
+      h=`<p>This is the <b>design condition</b>: the exit pressure equals the back pressure (<span class="num">${fmt(Pe/PSI,2)}</span> psia), so the jet leaves parallel with no shocks or expansion waves. For a given P₀ and P<sub>b</sub>, this area ratio gives the most thrust.</p>`+
+        `<p>The pressure ratio P₀/P<sub>e</sub> = ${fmt(P0/Pe,2)} and the area ratio A<sub>e</sub>/A* = ${fmt(S.geo.Ae/S.geo.At,3)} both correspond to exit Mach ${fmt(s.M[n-1],3)}.</p>`;
+      break;
+    case "under":
+      h=`<p>The flow leaves at <span class="num">${fmt(Pe/PSI,2)}</span> psia, <b>above</b> the back pressure, so it keeps expanding outside through expansion fans and the plume balloons outward. Inside the nozzle nothing has changed since the overexpanded case.</p>`+
+        `<p>A longer diverging section (bigger exit) would expand the gas further inside the nozzle and recover some of the thrust lost outside.</p>`;
+      break;
+  }
+  h+=`<p class="hint">Thrust here is the ideal jet thrust, F = ṁ·V<sub>e</sub> + (P<sub>e</sub> − P<sub>b</sub>)·A<sub>e</sub>.</p>`;
+  $("explain").innerHTML=h;
+}
+
+/* ---------- charts ---------- */
+let chartPending=false;
+function scheduleCharts(){if(!chartPending){chartPending=true;requestAnimationFrame(()=>{chartPending=false;drawCharts();});}}
+function baseLayout(xt,yt){
+  const ink=cssv("--ink"),muted=cssv("--muted"),line=cssv("--line");
+  return {margin:{l:52,r:12,t:8,b:44},paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",
+    font:{family:"IBM Plex Sans, system-ui, sans-serif",size:12,color:ink},
+    xaxis:{title:{text:xt,font:{color:muted}},gridcolor:line,zerolinecolor:line,linecolor:line},
+    yaxis:{title:{text:yt,font:{color:muted}},gridcolor:line,zerolinecolor:line,linecolor:line},
+    showlegend:true,legend:{orientation:"h",y:-0.28,x:0,font:{size:11,color:muted}}};
+}
+const cfg={displayModeBar:false,responsive:true};
+function refCurves(){
+  // Limiting isentropic distributions used as textbook reference lines.
+  const geo=S.geo,g=S.g,c=(g-1)/2,e=g/(g-1),xs=geo.x.map(v=>v*1000);
+  const subM=geo.A.map(a=>machFromArea(a/geo.At,g,false));
+  const supM=geo.A.map((a,j)=>machFromArea(a/geo.At,g,j>geo.it));
+  return {xs,subP:subM.map(m=>1/Math.pow(1+c*m*m,e)),supP:supM.map(m=>1/Math.pow(1+c*m*m,e)),subM,supM};
+}
+function drawCharts(){
+  if(!S.sol||typeof Plotly==="undefined")return;
+  const s=S.sol,geo=S.geo,xs=geo.x.map(v=>v*1000),ref=refCurves(),acc=cssv("--accent"),muted=cssv("--muted"),shockC=cssv("--shock"),col=cssv(REG[s.regime].col);
+  const Lmm=xs[xs.length-1];
+  // Plot 1: pressure
+  const t1=[
+    {x:ref.xs,y:ref.subP,name:"Choking limit (subsonic)",mode:"lines",line:{dash:"dot",width:1.5,color:muted}},
+  ];
+  if(S.type==="CD")t1.push({x:ref.xs,y:ref.supP,name:"Shock-free supersonic",mode:"lines",line:{dash:"dash",width:1.5,color:muted}});
+  t1.push({x:xs,y:s.P.map(p=>p/S.P0),name:"Current",mode:"lines",line:{width:3,color:col}});
+  t1.push({x:[Lmm,Lmm*1.06],y:[S.Pb/S.P0,S.Pb/S.P0],name:"Back pressure",mode:"lines",line:{width:3,color:cssv("--ink")}});
+  const l1=baseLayout("x (mm)","P / P₀");l1.yaxis.range=[0,1.03];l1.xaxis.range=[0,Lmm*1.07];
+  if(s.shock)l1.shapes=[{type:"line",x0:s.shock.x*1000,x1:s.shock.x*1000,y0:0,y1:1,line:{color:shockC,width:1.5,dash:"dot"}}];
+  Plotly.react("plotP",t1,l1,cfg);
+  // Plot 2: selectable
+  const v=$("plot2Var").value;
+  const map={M:{y:s.M,t:"Mach number"},T:{y:s.T,t:"T (K)"},V:{y:s.V,t:"V (m/s)"},rho:{y:s.rho,t:"ρ (kg/m³)"}};
+  const t2=[{x:xs,y:map[v].y,name:"Current",mode:"lines",line:{width:3,color:col}}];
+  if(v==="M"){
+    t2.unshift({x:ref.xs,y:ref.subM,name:"Choking limit",mode:"lines",line:{dash:"dot",width:1.5,color:muted}});
+    if(S.type==="CD")t2.unshift({x:ref.xs,y:ref.supM,name:"Shock-free supersonic",mode:"lines",line:{dash:"dash",width:1.5,color:muted}});
+  }
+  const l2=baseLayout("x (mm)",map[v].t);
+  if(v==="M")l2.shapes=[{type:"line",x0:0,x1:Lmm,y0:1,y1:1,line:{color:muted,width:1}}];
+  if(s.shock)(l2.shapes=l2.shapes||[]).push({type:"line",x0:s.shock.x*1000,x1:s.shock.x*1000,yref:"paper",y0:0,y1:1,line:{color:shockC,width:1.5,dash:"dot"}});
+  Plotly.react("plot2",t2,l2,cfg);
+  // Plot 3: mass flow vs Pb/P0
+  const th=s.th,pr=linspace(0.01,0.999,160),md=pr.map(p=>1000*mdotAt(geo,S.P0,S.T0,p*S.P0,S.g,S.R,th));
+  const t3=[{x:pr,y:md,name:"ṁ (g/s)",mode:"lines",line:{width:2.5,color:acc}},
+    {x:[S.Pb/S.P0],y:[s.mdot*1000],name:"Current",mode:"markers",marker:{size:12,color:col,line:{width:2,color:cssv("--surface")}}}];
+  const l3=baseLayout("Pb / P₀","ṁ (g/s)");l3.xaxis.range=[0,1];l3.yaxis.rangemode="tozero";
+  l3.shapes=[{type:"line",x0:th.Pchoke/S.P0,x1:th.Pchoke/S.P0,yref:"paper",y0:0,y1:1,line:{color:muted,width:1,dash:"dot"}}];
+  l3.annotations=[{x:th.Pchoke/S.P0,yref:"paper",y:1,text:"choking",showarrow:false,xanchor:"right",font:{size:11,color:muted}}];
+  Plotly.react("plotM",t3,l3,cfg);
+}
+
+/* ---------- animated nozzle ---------- */
+const cv=$("viz"),ctx=cv.getContext("2d");
+let view=null;
+const STOPS=[[0,[48,18,59]],[0.15,[65,69,171]],[0.3,[57,135,249]],[0.45,[27,207,212]],[0.6,[97,252,108]],[0.72,[210,233,53]],[0.85,[254,155,45]],[1,[200,30,20]]];
+function cmap(t){t=Math.min(1,Math.max(0,t));for(let i=1;i<STOPS.length;i++){if(t<=STOPS[i][0]){const [a,ca]=STOPS[i-1],[b,cb]=STOPS[i],f=(t-a)/(b-a);
+  return `rgb(${ca.map((v,k)=>Math.round(v+(cb[k]-v)*f)).join(",")})`;}}return "rgb(200,30,20)";}
+function field(){
+  const s=S.sol,k=$("colorBy").value;
+  const arr={M:s.M,P:s.P.map(p=>p/PSI),T:s.T,V:s.V,rho:s.rho}[k];
+  const unit={M:"",P:" psia",T:" K",V:" m/s",rho:" kg/m³"}[k];
+  let lo=Math.min(...arr),hi=Math.max(...arr);
+  if(k==="M"){lo=0;hi=Math.max(2,hi);} if(hi-lo<1e-9)hi=lo+1;
+  return {arr,lo,hi,unit,k};
+}
+function drawLegend(f){
+  const lc=$("legCanvas"),lx=lc.getContext("2d");
+  for(let i=0;i<160;i++){lx.fillStyle=cmap(i/159);lx.fillRect(i,0,1,10);}
+  const d=f.k==="M"?2:(f.k==="rho"?3:1);
+  $("legMin").textContent=f.lo.toFixed(d)+f.unit;$("legMax").textContent=f.hi.toFixed(d)+f.unit;
+}
+function resizeCanvas(){
+  const dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;
+  cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+function seedParticles(){
+  S.particles=[];for(let i=0;i<170;i++)S.particles.push({x:Math.random(),y:(Math.random()*2-1)*0.9,ext:Math.random()<0.35});
+}
+function drawViz(){
+  if(!S.sol||!S.geo)return;
+  const w=cv.clientWidth,h=cv.clientHeight,geo=S.geo,s=S.sol,n=geo.x.length;
+  const L=geo.x[n-1],rmax=Math.max(...geo.r);
+  const sc=Math.min((w-30)/(L*1.42),(h-30)/(2*rmax*1.55)), x0=16, yc=h/2;
+  view={sc,x0,yc,L};
+  const X=x=>x0+x*sc, Y=r=>yc-r*sc;
+  ctx.clearRect(0,0,w,h);
+  const f=field(),norm=v=>(v-f.lo)/(f.hi-f.lo);
+  // plume (schematic)
+  const re=geo.r[n-1],xe=X(L),pl=L*0.38*sc,exitCol=cmap(norm(f.arr[n-1]));
+  let spread=1;
+  if(s.regime==="under"||s.regime==="chokedC")spread=1.45; else if(s.regime==="over")spread=0.72; else if(s.regime==="sub"||s.regime==="shock")spread=1.12;
+  ctx.save();ctx.globalAlpha=0.28;ctx.fillStyle=exitCol;
+  ctx.beginPath();ctx.moveTo(xe,Y(re));
+  ctx.quadraticCurveTo(xe+pl*0.5,Y(re*(1+(spread-1)*1.4)),xe+pl,Y(re*spread));
+  ctx.lineTo(xe+pl,Y(-re*spread));
+  ctx.quadraticCurveTo(xe+pl*0.5,Y(-re*(1+(spread-1)*1.4)),xe,Y(-re));ctx.closePath();ctx.fill();ctx.restore();
+  if(s.regime==="over"||s.regime==="under"){
+    // shock diamonds / expansion fans as faint chevrons
+    ctx.save();ctx.strokeStyle=cssv("--muted");ctx.globalAlpha=0.55;ctx.lineWidth=1;
+    const step=pl/3;
+    for(let k=0;k<3;k++){const xa=xe+k*step,rr=re*(s.regime==="over"?0.85:1.1);
+      ctx.beginPath();ctx.moveTo(xa,Y(rr));ctx.lineTo(xa+step*0.5,Y(0));ctx.lineTo(xa,Y(-rr));
+      ctx.moveTo(xa+step*0.5,Y(0));ctx.lineTo(xa+step,Y(rr));ctx.moveTo(xa+step*0.5,Y(0));ctx.lineTo(xa+step,Y(-rr));ctx.stroke();}
+    ctx.restore();
+  }
+  // field fill
+  for(let i=0;i<n-1;i++){
+    ctx.fillStyle=cmap(norm((f.arr[i]+f.arr[i+1])/2));
+    ctx.beginPath();ctx.moveTo(X(geo.x[i]),Y(geo.r[i]));ctx.lineTo(X(geo.x[i+1]),Y(geo.r[i+1]));
+    ctx.lineTo(X(geo.x[i+1]),Y(-geo.r[i+1]));ctx.lineTo(X(geo.x[i]),Y(-geo.r[i]));ctx.closePath();ctx.fill();
+  }
+  // particles
+  ctx.fillStyle="rgba(255,255,255,0.85)";
+  for(const p of S.particles){
+    let px,py;
+    if(p.ext&&p.x>1){const t=(p.x-1)/0.38;px=xe+t*pl;py=yc-p.y*re*(1+(spread-1)*Math.min(1,t*1.4))*sc;}
+    else{const xx=Math.min(p.x,1)*L;px=X(xx);py=yc-p.y*interp(geo.x,geo.r,xx)*sc;}
+    ctx.beginPath();ctx.arc(px,py,1.6,0,6.283);ctx.fill();
+  }
+  // walls
+  ctx.strokeStyle=cssv("--ink");ctx.lineWidth=3;
+  for(const sgn of [1,-1]){ctx.beginPath();geo.x.forEach((x,i)=>{const px=X(x),py=Y(sgn*geo.r[i]);i?ctx.lineTo(px,py):ctx.moveTo(px,py);});ctx.stroke();}
+  // throat marker
+  const xt=X(geo.x[geo.it]);ctx.save();ctx.setLineDash([3,4]);ctx.strokeStyle=cssv("--muted");ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(xt,Y(rmax*1.15));ctx.lineTo(xt,Y(-rmax*1.15));ctx.stroke();ctx.restore();
+  ctx.fillStyle=cssv("--muted");ctx.font="12px IBM Plex Sans, sans-serif";ctx.textAlign="center";
+  ctx.fillText(S.type==="CD"?"throat":"throat = exit",xt,Y(-rmax*1.15)+14);
+  // shock
+  if(s.shock){
+    const xs=X(s.shock.x),rs=interp(geo.x,geo.r,s.shock.x);
+    ctx.strokeStyle=cssv("--shock");ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(xs,Y(rs));ctx.lineTo(xs,Y(-rs));ctx.stroke();
+    ctx.fillStyle=cssv("--shock");ctx.font="600 13px IBM Plex Sans Condensed, sans-serif";
+    ctx.fillText(`normal shock  M ${s.shock.M1.toFixed(2)} → ${s.shock.M2.toFixed(2)}`,xs,Y(rmax*1.15)-4);
+  }
+  // labels
+  ctx.fillStyle=cssv("--muted");ctx.font="12px IBM Plex Sans, sans-serif";ctx.textAlign="left";
+  ctx.fillText(`P₀ ${(S.P0/PSI).toFixed(1)} psia`,x0,16);
+  ctx.textAlign="right";ctx.fillText(`Pb ${(S.Pb/PSI).toFixed(2)} psia  ·  outside flow drawn schematically`,w-8,16);
+  drawLegend(f);
+}
+let last=performance.now();
+function tick(now){
+  const dt=Math.min(0.05,(now-last)/1000);last=now;
+  if(S.playing&&S.sol){
+    const geo=S.geo,s=S.sol,L=geo.x[geo.x.length-1],vmax=Math.max(...s.V),Ve=s.V[s.V.length-1];
+    for(const p of S.particles){
+      const v=p.x<=1?interp(geo.x,s.V,p.x*L):Ve*0.9;
+      p.x+=dt*0.45*Math.max(v,vmax*0.004)/vmax;
+      const lim=p.ext?1.38:1;
+      if(p.x>lim){p.x=0;p.y=(Math.random()*2-1)*0.9;}
+    }
+  }
+  drawViz();requestAnimationFrame(tick);
+}
+function probeAt(clientX,clientY){
+  if(!view||!S.sol)return;
+  const rect=cv.getBoundingClientRect(),mx=clientX-rect.left,x=(mx-view.x0)/view.sc,geo=S.geo,s=S.sol;
+  const pr=$("probe");
+  if(x<0||x>view.L){pr.style.display="none";return;}
+  const g=k=>interp(geo.x,s[k],x);
+  pr.innerHTML=`x ${(x*1000).toFixed(2)} mm · D ${(2000*interp(geo.x,geo.r,x)).toFixed(2)} mm<br>M ${g("M").toFixed(3)} · V ${g("V").toFixed(1)} m/s<br>P ${(g("P")/PSI).toFixed(2)} psia · T ${g("T").toFixed(1)} K<br>ρ ${g("rho").toFixed(3)} kg/m³`;
+  pr.style.display="block";
+  const left=Math.min(mx+14,rect.width-pr.offsetWidth-6);pr.style.left=left+"px";pr.style.top=Math.max(6,clientY-rect.top-70)+"px";
+}
+cv.addEventListener("pointermove",e=>probeAt(e.clientX,e.clientY));
+cv.addEventListener("pointerdown",e=>probeAt(e.clientX,e.clientY));
+cv.addEventListener("pointerleave",()=>{$("probe").style.display="none";});
+
+/* ---------- lessons ---------- */
+const LESSONS=[
+  {t:"1 · Choking in a converging nozzle",
+   set:{type:"C",gas:"1.4,287.05",P0:100,T0:300,Din:20,Dt:10,alpha:20,Pb:95},
+   steps:["Watch the mass-flow chart as you slowly drag P<sub>b</sub> to the left.","Find the back pressure where ṁ stops rising. Compare it with 0.528·P₀.","Keep lowering P<sub>b</sub>. What happens to exit Mach and exit pressure?"],
+   q:"If you halve P<sub>b</sub> from 40 to 20 psia, how much does the mass flow change?",
+   a:"Not at all. Once the throat is sonic the flow is choked: ṁ depends only on P₀, T₀, the gas and the throat area. To get more flow, raise P₀ or enlarge the throat."},
+  {t:"2 · A shock walks through the nozzle",
+   set:{type:"CD",gas:"1.4,287.05",P0:100,T0:300,Din:20,Dt:10,De:16.24,alpha:20,beta:10,rc:1.5,Pb:98},
+   steps:["Start unchoked: the flow speeds up then slows down, like a venturi.","Lower P<sub>b</sub> past the choking pressure. Where does the shock first appear?","Keep lowering it and watch the shock move downstream and the total-pressure loss grow."],
+   q:"Why does the shock get stronger as it moves toward the exit?",
+   a:"The flow ahead of it keeps accelerating in the diverging section, so the shock meets a higher Mach number M₁. Normal-shock losses grow rapidly with M₁."},
+  {t:"3 · Over-, ideal and underexpanded",
+   set:{type:"CD",gas:"1.4,287.05",P0:100,T0:300,Din:20,Dt:10,De:16.24,alpha:20,beta:10,rc:1.5,Pb:20},
+   steps:["Use the jump buttons: Overexpanded, Ideal expansion, Underexpanded.","Notice that the flow inside the nozzle does not change between them. Only the plume does.","Find the point where the separation caution appears."],
+   q:"Rocket engines are often overexpanded at liftoff. Why design them that way?",
+   a:"They are sized for higher altitude, where ambient pressure is lower. As the rocket climbs, P<sub>b</sub> falls, passes the ideal point and the nozzle becomes underexpanded. The design is a compromise over the whole flight."},
+  {t:"4 · Design a Mach 3 nozzle",
+   set:{type:"CD",gas:"1.4,287.05",P0:100,T0:300,Din:30,Dt:10,De:16.24,alpha:20,beta:12,rc:1.5,Pb:14.7},
+   steps:["In “Design a nozzle backwards”, set the target to exit Mach 3 and apply it.","Read the required area ratio and design exit pressure.","Set P<sub>b</sub> back to 14.7 psia (atmosphere). Is this a good sea-level test?"],
+   q:"What supply pressure P₀ makes a Mach 3 nozzle ideally expanded into 14.7 psia air?",
+   a:"P₀/P<sub>e</sub> = (1 + 0.2·3²)<sup>3.5</sup> ≈ 36.7, so P₀ ≈ 14.7 × 36.7 ≈ 540 psia. At 100 psia the exit is only about 2.7 psia, and the nozzle would likely separate in a real test."}
+];
+function buildLessons(){
+  const box=$("lessons");
+  LESSONS.forEach((L,i)=>{
+    const d=document.createElement("article");d.className="lesson";d.dataset.active="false";
+    d.innerHTML=`<header><h3>${L.t}</h3><button class="btn" data-i="${i}">Set up</button></header>
+      <ol>${L.steps.map(s=>`<li>${s}</li>`).join("")}</ol>
+      <details><summary>Predict, then check: ${L.q}</summary><p>${L.a}</p></details>`;
+    d.querySelector("button").addEventListener("click",()=>applyLesson(i));
+    box.appendChild(d);
+  });
+}
+function setGeom(t){S.type=t;$("gCD").setAttribute("aria-pressed",t==="CD");$("gC").setAttribute("aria-pressed",t==="C");
+  document.querySelectorAll(".cdOnly").forEach(e=>e.style.display=t==="CD"?"":"none");}
+function applyLesson(i){
+  const s=LESSONS[i].set;
+  setGeom(s.type);$("gas").value=s.gas;gasChanged();
+  ["P0","T0","Din","Dt","De","alpha","beta","rc"].forEach(k=>{if(s[k]!==undefined)$(k).value=s[k];});
+  S.Pb=s.Pb*PSI;
+  document.querySelectorAll(".lesson").forEach((el,j)=>el.dataset.active=String(j===i));
+  recompute();seedParticles();
+}
+
+/* ---------- inverse design (port of FlowLab_TargetExitPressureDesign.m) ---------- */
+let designResult=null;
+function updateDesign(){
+  const mode=$("dMode").value,val=parseFloat($("dVal").value),g=S.g,R=S.R,P0=S.P0,T0=S.T0,c=(g-1)/2,e=g/(g-1);
+  $("dMachWrap").style.display=mode==="mdot"?"":"none";
+  const out=$("dOut");designResult=null;
+  try{
+    if(!Number.isFinite(val)||val<=0)throw new Error("Enter a positive target value.");
+    let Me,dt=parseFloat($("Dt").value)/1000;
+    const K=P0*Math.sqrt(g/(R*T0))*Math.pow(2/(g+1),(g+1)/(2*(g-1)));
+    if(mode==="M"){if(val<=1)throw new Error("A supersonic exit needs a target Mach number above 1.");Me=val;}
+    else if(mode==="Pe"){const crit=Math.pow(2/(g+1),e);
+      if(val*PSI/P0>=crit)throw new Error(`For a supersonic exit, Pe must be below ${(crit*P0/PSI).toFixed(2)} psia (${crit.toFixed(4)}·P₀).`);
+      Me=Math.sqrt(2/(g-1)*(Math.pow(P0/(val*PSI),(g-1)/g)-1));}
+    else{Me=parseFloat($("dMach").value);if(!(Me>1))throw new Error("Enter an exit Mach number above 1 for the mass-flow design.");
+      dt=Math.sqrt(4*(val/1000)/K/Math.PI);}
+    const ar=areaMach(Me,g),de=dt*Math.sqrt(ar),Pe=P0/Math.pow(1+c*Me*Me,e),mdot=K*Math.PI*dt*dt/4;
+    const PsE=Pe*(1+2*g/(g+1)*(Me*Me-1)),Pchoke=P0/Math.pow(1+c*Math.pow(machFromArea(ar,g,false),2),e);
+    const Pb=S.Pb,P0ideal=Pb*Math.pow(1+c*Me*Me,e);
+    let verdict;
+    if(Pb>=Pchoke)verdict="Unchoked at the current Pb: the target will not be reached.";
+    else if(Pb>PsE)verdict="Internal normal shock at the current Pb: the target will not be reached.";
+    else if(Math.abs(Pb-Pe)/Pe<=0.01)verdict="Ideally expanded at the current Pb.";
+    else if(Pb>Pe)verdict=Pe/Pb<0.4?"Overexpanded at the current Pb, with internal separation likely in a real test.":"Overexpanded at the current Pb.";
+    else verdict="Underexpanded at the current Pb.";
+    const din=parseFloat($("Din").value)/1000;
+    const rows=[["Exit Mach",Me.toFixed(4)],["Area ratio Ae/At",ar.toFixed(4)],["Throat diameter",(dt*1000).toFixed(3)+" mm"],
+      ["Exit diameter",(de*1000).toFixed(3)+" mm"],["Design exit pressure Pe",(Pe/PSI).toFixed(3)+" psia"],
+      ["Exit temperature",(T0/(1+c*Me*Me)).toFixed(1)+" K"],["Choked mass flow",(mdot*1000).toFixed(3)+" g/s"],
+      ["Internal-shock-free if Pb ≤",(PsE/PSI).toFixed(3)+" psia"],
+      [`P₀ for ideal expansion into Pb = ${(Pb/PSI).toFixed(2)} psia`,(P0ideal/PSI).toFixed(1)+" psia"],
+      ["At the current Pb",verdict]];
+    if(dt>=din)rows.push(["Check","The throat is larger than the inlet diameter. Increase the inlet diameter before applying."]);
+    out.innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join("");
+    designResult={dt,de,Pe};
+  }catch(err){out.innerHTML=`<tr><td colspan="2" style="text-align:left;color:var(--r-shock);font-family:var(--body)">${err.message}</td></tr>`;}
+}
+$("dApply").addEventListener("click",()=>{
+  if(!designResult)return;
+  setGeom("CD");
+  $("Dt").value=(designResult.dt*1000).toFixed(3);$("De").value=(designResult.de*1000).toFixed(3);
+  if(parseFloat($("Din").value)<=designResult.dt*1000)$("Din").value=(designResult.dt*1000*2).toFixed(1);
+  S.Pb=designResult.Pe;recompute();seedParticles();
+});
+["dMode","dVal","dMach"].forEach(id=>$(id).addEventListener("input",updateDesign));
+$("dMode").addEventListener("change",()=>{$("dVal").value={M:3,Pe:5,mdot:20}[$("dMode").value];updateDesign();});
+
+/* ---------- copy exports ---------- */
+async function copyText(txt,label){
+  try{await navigator.clipboard.writeText(txt);$("copyMsg").textContent=`${label} copied. Paste into a spreadsheet or a .csv file.`;}
+  catch(e){$("copyMsg").textContent="Your browser blocked copying. Try the button again, or use EXPORT in the MATLAB app.";}
+}
+$("copyFlow").addEventListener("click",()=>{
+  const s=S.sol,geo=S.geo;if(!s)return;
+  let t=`# Flow Lab web | ${REG[s.regime].name} | P0 ${(S.P0/PSI).toFixed(3)} psia | T0 ${S.T0} K | Pb ${(S.Pb/PSI).toFixed(3)} psia | gamma ${S.g} | R ${S.R}\n`;
+  t+="x_mm,radius_mm,area_mm2,Mach,pressure_psia,temperature_K,velocity_mps,density_kgm3\n";
+  geo.x.forEach((x,i)=>{t+=[x*1000,geo.r[i]*1000,geo.A[i]*1e6,s.M[i],s.P[i]/PSI,s.T[i],s.V[i],s.rho[i]].map(v=>v.toPrecision(8)).join(",")+"\n";});
+  copyText(t,"Flow table");
+});
+$("copyContour").addEventListener("click",()=>{
+  const geo=S.geo;if(!geo)return;let t="x_mm,y_mm\n";
+  geo.x.forEach((x,i)=>{t+=`${(x*1000).toPrecision(8)},${(geo.r[i]*1000).toPrecision(8)}\n`;});
+  for(let i=geo.x.length-1;i>=0;i--)t+=`${(geo.x[i]*1000).toPrecision(8)},${(-geo.r[i]*1000).toPrecision(8)}\n`;
+  copyText(t,"Wall contour");
+});
+
+/* ---------- wiring ---------- */
+function gasChanged(){const custom=$("gas").value==="custom";$("gam").disabled=!custom;$("Rg").disabled=!custom;}
+$("gas").addEventListener("change",()=>{gasChanged();recompute();});
+["gam","Rg","P0","T0","Din","Dt","De","alpha","beta","rc"].forEach(id=>$(id).addEventListener("input",()=>recompute()));
+$("gCD").addEventListener("click",()=>{setGeom("CD");recompute();seedParticles();});
+$("gC").addEventListener("click",()=>{setGeom("C");recompute();seedParticles();});
+$("pb").addEventListener("input",e=>{if(!S.geo)return;S.Pb=sliderToPb(+e.target.value);sync();});
+$("pbNum").addEventListener("change",e=>{const v=parseFloat(e.target.value)*PSI;
+  if(!(v>0&&v<S.P0)){$("err").textContent="Back pressure must be positive and below P₀.";$("err").style.display="block";return;}
+  $("err").style.display="none";S.Pb=v;sync();});
+$("plot2Var").addEventListener("change",scheduleCharts);
+$("playBtn").addEventListener("click",()=>{S.playing=!S.playing;$("playBtn").textContent=S.playing?"Pause flow":"Play flow";});
+window.addEventListener("resize",()=>{resizeCanvas();});
+const mq=window.matchMedia("(prefers-color-scheme: dark)");
+const rethemer=()=>scheduleCharts();
+if(mq.addEventListener)mq.addEventListener("change",rethemer);
+new MutationObserver(rethemer).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+
+if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){S.playing=false;$("playBtn").textContent="Play flow";}
+buildLessons();setGeom("CD");gasChanged();resizeCanvas();seedParticles();
+S.Pb=60*PSI; recompute();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+# Flow Lab Nozzle Explorer
+
+An interactive, browser-based simulator for teaching compressible flow through converging and converging–diverging nozzles.
+
+**Live site:** https://fahat-yousuf.github.io/flowlab/
+
+## What students can do
+- Drag the back pressure across colour-coded flow regimes: unchoked, internal normal shock, overexpanded, ideally expanded, underexpanded.
+- Watch an animated nozzle coloured by Mach number, pressure, temperature, velocity or density, with the normal shock drawn where it forms.
+- Compare wall pressure with the textbook limiting curves, and see choking on the mass-flow vs back-pressure plot.
+- Follow four guided lessons with predict-then-check questions.
+- Design a nozzle backwards from a target exit Mach, exit pressure or mass flow.
+- Copy the flow table or wall contour as CSV.
+
+## Model
+Steady quasi-one-dimensional flow of a calorically perfect gas, with isentropic branches and at most one normal shock. It uses the same equations as the Flow Lab MATLAB solver. Not modelled: boundary layers, separation, oblique shocks, real-gas effects and condensation. The flow outside the nozzle is drawn schematically.
+
+## Run locally
+Open `index.html` in any modern browser. An internet connection is needed for the plotting library (Plotly) and fonts.
