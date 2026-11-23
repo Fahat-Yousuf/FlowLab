@@ -114,7 +114,7 @@ for key in ["air", "he", "h2", "co2"]:
       status("Loading the flowlab package…");
       p.FS.mkdirTree("/home/pyodide/flowlab");
       for (const f of FILES) {
-        const r = await fetch("python/flowlab/" + f);
+        const r = await fetch("python/flowlab/" + f + "?v=20261123b");
         if (!r.ok) throw new Error("Could not load flowlab/" + f);
         p.FS.writeFile("/home/pyodide/flowlab/" + f, await r.text());
       }
