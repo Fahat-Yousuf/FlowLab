@@ -7,6 +7,62 @@
   let py = null, loading = null;
 
   const SNIPPETS = {
+    "Your first program": `from flowlab import *          # load the Flow Lab engine
+
+# Try five exit diameters (mm) and print the exit Mach for each one
+for De in [12, 14, 16, 18, 20]:
+    # 1. build the nozzle
+    geo = build_geometry("conical", Din=30, Dt=10, De=De, alpha=30, beta=15)
+    # 2. solve the flow: P0 = 100 psia, T0 = 300 K, Pb = 14.7 psia, air
+    sol = solve(geo, 100*PSI, 300, 14.7*PSI, 1.4, 287.05)
+    # 3. print the result at the exit (index -1 = last point)
+    print(De, "mm exit ->", round(sol.M[-1], 3), "Mach,", sol.regime_name)
+`,
+    "Exit diameter sweep": `from flowlab import *
+
+# Keeps your sidebar nozzle (shape, throat, P0, T0, Pb, gas) and changes only the exit.
+base = dict(design["geometry"])
+if base["shape"] == "converging":            # a converging nozzle has no exit to vary
+    base.update(shape="conical", beta=15)
+P0, T0, Pb, g, R = design["P0"], design["T0"], design["Pb"], design["gamma"], design["R"]
+Dt = base["Dt"]
+
+exits, thrust = [], []
+print(" exit mm   Ae/At   exit M   thrust N   regime")
+for i in range(31):
+    base["De"] = Dt * (1.05 + 0.05 * i)
+    try:
+        geo = build_geometry(**base)
+    except ValueError:
+        continue                             # shape not possible at this size
+    sol = solve(geo, P0, T0, Pb, g, R)
+    exits.append(base["De"]); thrust.append(sol.F)
+    print(f"{base['De']:8.2f} {geo.area_ratio:7.3f} {sol.M[-1]:8.3f} {sol.F:9.2f}   {sol.regime_name}")
+
+best = exits[thrust.index(max(thrust))]
+print(f"\\nMost thrust at Pb = {Pb/PSI:.2f} psia: exit diameter about {best:.2f} mm")
+plot.line(exits, {"thrust (N)": thrust}, title="Thrust vs exit diameter",
+          xlabel="exit diameter (mm)", ylabel="thrust (N)")
+`,
+    "Where is the shock?": `from flowlab import *
+
+geo = build_geometry(**design["geometry"])
+P0, T0, g, R = design["P0"], design["T0"], design["gamma"], design["R"]
+th = thresholds(geo, g, P0)
+if "PshockExit" not in th:
+    print("A converging-only nozzle never has a shock inside. Switch to converging-diverging.")
+else:
+    print(f"A shock stands inside for {th['PshockExit']/PSI:.2f} < Pb < {th['Pchoke']/PSI:.2f} psia\\n")
+    print("  Pb psia   shock at mm   M1 -> M2    total P lost")
+    pbs, xs = [], []
+    for k in range(1, 20):
+        Pb = th["PshockExit"] + (th["Pchoke"] - th["PshockExit"]) * k / 20
+        s = solve(geo, P0, T0, Pb, g, R).shock
+        print(f"{Pb/PSI:9.2f} {s['x']*1000:12.2f}   {s['M1']:.2f} -> {s['M2']:.2f}   {100*(1 - s['P02']/P0):8.1f} %")
+        pbs.append(Pb / PSI); xs.append(s["x"] * 1000)
+    plot.line(pbs, {"shock position (mm)": xs}, title="Where the shock sits",
+              xlabel="back pressure (psia)", ylabel="x (mm)")
+`,
     "Quick start: solve the current design": `from flowlab import *
 
 # 'design' is created by "Insert current design" (or use your own numbers)
@@ -121,7 +177,7 @@ for key in ["air", "he", "h2", "co2"]:
       await p.runPythonAsync("import sys\nsys.path.insert(0, '/home/pyodide')\nimport flowlab\nprint('flowlab', flowlab.__version__, 'ready')");
       py = p; status("Python ready."); return p;
     })();
-    try { return await loading; } catch (e) { loading = null; status("Python failed to load."); throw e; }
+    try { return await loading; } catch (e) { loading = null; status("Python could not be downloaded. Check your internet connection, then press Run to try again."); throw e; }
   }
 
   function designCode() {
@@ -168,6 +224,13 @@ design = {
       t.value = designCode() + "\n" + code;
     });
     el("pyRun").addEventListener("click", run);
+    // "Open in editor" buttons in the guide
+    document.querySelectorAll(".pyEx").forEach(b => b.addEventListener("click", () => {
+      const name = b.dataset.snip; if (!SNIPPETS[name]) return;
+      loadSnippet(name); sel.value = name;
+      el("pyCode").scrollIntoView({ behavior: "smooth", block: "center" }); el("pyCode").focus({ preventScroll: true });
+      status("Example loaded. Press Run ▶.");
+    }));
     el("pyCode").addEventListener("keydown", e => {
       if (e.key === "Tab") { e.preventDefault(); const t = e.target, s = t.selectionStart; t.value = t.value.slice(0, s) + "    " + t.value.slice(t.selectionEnd); t.selectionStart = t.selectionEnd = s + 4; }
       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); run(); }
