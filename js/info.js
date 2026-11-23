@@ -99,11 +99,11 @@ let pinned = null, current = null;
 
 function icon(key) {
   const title = (INFO[key] || [key])[0].replace(/<[^>]+>/g, "");
-  return `<span class="info" role="button" tabindex="0" data-info="${key}" aria-label="What is ${title}?">i</span>`;
+  return `<span class="info-i" role="button" tabindex="0" data-info="${key}" aria-label="What is ${title}?">i</span>`;
 }
 function decorate(root) {
-  (root || document).querySelectorAll("[data-info]:not(.info)").forEach(el => {
-    if (!INFO[el.dataset.info] || el.querySelector(":scope > .info")) return;
+  (root || document).querySelectorAll("[data-info]:not(.info-i)").forEach(el => {
+    if (!INFO[el.dataset.info] || el.querySelector(":scope > .info-i")) return;
     el.insertAdjacentHTML("beforeend", " " + icon(el.dataset.info));
   });
 }
@@ -119,20 +119,20 @@ function show(el) {
 }
 function hide() { tip.hidden = true; pinned = null; current = null; }
 
-document.addEventListener("mouseover", e => { const i = e.target.closest && e.target.closest(".info"); if (i && !pinned) show(i); });
-document.addEventListener("mouseout", e => { const i = e.target.closest && e.target.closest(".info"); if (i && !pinned && !(e.relatedTarget && i.contains(e.relatedTarget))) tip.hidden = true; });
-document.addEventListener("focusin", e => { if (e.target.classList && e.target.classList.contains("info")) show(e.target); });
-document.addEventListener("focusout", e => { if (e.target.classList && e.target.classList.contains("info") && !pinned) tip.hidden = true; });
+document.addEventListener("mouseover", e => { const i = e.target.closest && e.target.closest(".info-i"); if (i && !pinned) show(i); });
+document.addEventListener("mouseout", e => { const i = e.target.closest && e.target.closest(".info-i"); if (i && !pinned && !(e.relatedTarget && i.contains(e.relatedTarget))) tip.hidden = true; });
+document.addEventListener("focusin", e => { if (e.target.classList && e.target.classList.contains("info-i")) show(e.target); });
+document.addEventListener("focusout", e => { if (e.target.classList && e.target.classList.contains("info-i") && !pinned) tip.hidden = true; });
 // Click or tap pins the tip (needed on phones). Capture phase, so a click on an icon
 // inside a <label> or <button> does not also operate that control.
 document.addEventListener("click", e => {
-  const i = e.target.closest && e.target.closest(".info");
+  const i = e.target.closest && e.target.closest(".info-i");
   if (i) { e.preventDefault(); e.stopPropagation(); if (pinned === i) hide(); else { pinned = i; show(i); } return; }
   if (pinned && !tip.contains(e.target)) hide();
 }, true);
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") hide();
-  else if ((e.key === "Enter" || e.key === " ") && e.target.classList && e.target.classList.contains("info")) { e.preventDefault(); pinned = e.target; show(e.target); }
+  else if ((e.key === "Enter" || e.key === " ") && e.target.classList && e.target.classList.contains("info-i")) { e.preventDefault(); pinned = e.target; show(e.target); }
 });
 // While scrolling, keep the tip attached to its icon; close it once the icon leaves the screen.
 window.addEventListener("scroll", () => {
