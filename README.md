@@ -30,6 +30,7 @@ css/style.css       styles (light and dark)
 js/physics.js       engine: geometry, ideal solver, realistic model, checks (no DOM)
 js/app.js           user interface, charts, exports
 js/pylab.js         Python lab (Pyodide)
+js/info.js          ⓘ info tips: explanation text and tooltip
 python/flowlab/     the same engine as a pip-installable Python package
 python/tests/       Python verification tests
 docs/               code guide and rocket nozzle guide

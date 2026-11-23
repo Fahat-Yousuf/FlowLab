@@ -23,6 +23,7 @@ Flow Lab has three layers. Each one only talks to the layer below it.
             │
  js/app.js  (user interface)    reads inputs, calls the engine, draws charts, exports files
  js/pylab.js (Python lab)       runs the Python package in the browser
+ js/info.js  (info tips)        the ⓘ icons: every explanation text and the hover/tap tooltip
             │
  js/physics.js (engine "FL")    pure maths: geometry, flow solver, realistic model, checks
  python/flowlab/ (same engine)  identical maths in Python, for students and scripts
@@ -259,6 +260,8 @@ Always change **both** `js/physics.js` and `python/flowlab/`, then run both test
 **Add a check.** In `checks()`, compute your quantity and call `add(level, title, detail, fix, apply)`. `apply` keys must be input IDs (`P0`, `De`, `Din`, `alpha`, `beta`, `rc`, `T0`, `wall`).
 
 **Add a nozzle shape.** Write a builder that returns `finishGeo(x, r, kind, meta)` with strictly increasing x, the throat as the smallest radius, and `meta.exitAngle`, `meta.rcUp`, `meta.xThroat`. Add a branch in `buildGeometry`, a button in the sidebar, and its fields. The solver, realistic model, checks, drawings and exports all work from `x` and `r`, so they need no changes.
+
+**Add or edit an ⓘ explanation.** All tip text is in the `INFO` table at the top of `js/info.js` as `key: [title, text]`. Give any element `data-info="key"` (or add an input's id to `LABEL_KEYS`) and the icon appears automatically, including in content that is redrawn.
 
 **Add a tab.** Add a `<a data-tab="name">` link, a `<section class="view" data-view="name">`, the name to `TABS`, and a branch in `renderActive()`.
 

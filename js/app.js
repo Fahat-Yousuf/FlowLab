@@ -82,6 +82,9 @@ function showTab() {
 window.addEventListener("hashchange", showTab);
 function renderActive() {
   if (!S.sol) return;
+  try { renderTab(); } finally { if (window.FLInfo) FLInfo.decorate(); }
+}
+function renderTab() {
   if (S.tab === "design") renderDesign();
   else if (S.tab === "simulate") renderSimulate();
   else if (S.tab === "compare") renderCompare();
@@ -99,7 +102,7 @@ function baseLayout(xt, yt) {
     showlegend: true, legend: { orientation: "h", y: -0.3, x: 0, font: { size: 11, color: muted } } };
 }
 function plot(id, traces, layout) { if (typeof Plotly !== "undefined") Plotly.react(id, traces, layout, cfg); }
-function tile(k, v, u, cls) { return `<div class="tile ${cls || ""}"><div class="k">${k}</div><div class="v">${v}</div>${u ? `<div class="u">${u}</div>` : ""}</div>`; }
+function tile(k, v, u, cls, info) { return `<div class="tile ${cls || ""}"><div class="k"${info ? ` data-info="${info}"` : ""}>${k}</div><div class="v">${v}</div>${u ? `<div class="u">${u}</div>` : ""}</div>`; }
 function wallVolume(geo, t) { let v = 0; for (let i = 1; i < geo.x.length; i++) { const a = (geo.r[i - 1] + t) ** 2 - geo.r[i - 1] ** 2, b = (geo.r[i] + t) ** 2 - geo.r[i] ** 2; v += Math.PI * (a + b) / 2 * (geo.x[i] - geo.x[i - 1]); } return v; }
 
 /* ===================== DESIGN tab ===================== */
@@ -109,10 +112,10 @@ function renderDesign() {
   $("dsSub").textContent = `${S.gas.name} · P₀ ${fx(S.P0 / PSI, 1)} psia · T₀ ${fx(S.T0, 0)} K · Pb ${fx(S.Pb / PSI, 2)} psia`;
   const mass = wallVolume(g, S.wall / 1000) * S.material.rho * 1000;
   $("dsTiles").innerHTML = [
-    tile("Design exit Mach", cd ? fx(i.th.Msup, 3) : "1.000"), tile("Area ratio", cd ? fx(g.Ae / g.At, 3) : "1"),
-    tile("Length", fx(g.x[n - 1] * 1000, 1), "mm"), tile("Throat / exit Ø", `${fx(S.spec.Dt, 2)} / ${fx(2000 * g.r[n - 1], 2)}`, "mm"),
-    tile("Mass flow (ideal)", fx(i.mdot * 1000, 2), "g/s"), tile("Mass flow (realistic)", fx(r.mdot * 1000, 2), `g/s · Cd ${fx(r.Cd, 3)}`, "real"),
-    tile("Thrust at Pb (realistic)", fx(r.F, 2), `N · ideal ${fx(i.F, 2)}`, "real"), tile("Part mass", fx(mass, 1), `g · ${S.material.name}`)].join("");
+    tile("Design exit Mach", cd ? fx(i.th.Msup, 3) : "1.000", "", "", "t_designM"), tile("Area ratio", cd ? fx(g.Ae / g.At, 3) : "1", "", "", "t_eps"),
+    tile("Length", fx(g.x[n - 1] * 1000, 1), "mm", "", "t_len"), tile("Throat / exit Ø", `${fx(S.spec.Dt, 2)} / ${fx(2000 * g.r[n - 1], 2)}`, "mm", "", "t_diam"),
+    tile("Mass flow (ideal)", fx(i.mdot * 1000, 2), "g/s", "", "t_mdotI"), tile("Mass flow (realistic)", fx(r.mdot * 1000, 2), `g/s · Cd ${fx(r.Cd, 3)}`, "real", "t_mdotR"),
+    tile("Thrust at Pb (realistic)", fx(r.F, 2), `N · ideal ${fx(i.F, 2)}`, "real", "t_thrustR"), tile("Part mass", fx(mass, 1), `g · ${S.material.name}`, "", "t_mass")].join("");
   drawDesign(); updateDesignCalc(); renderShapeNotes();
 }
 function renderShapeNotes() {
@@ -216,13 +219,14 @@ function buildSegments() {
   bands.innerHTML = labels.innerHTML = ticks.innerHTML = jumps.innerHTML = "";
   S.segments.forEach((s, i) => {
     const d = document.createElement("div"); d.style.background = `var(${REG[s.key].col})`; bands.appendChild(d);
-    const l = document.createElement("div"); l.innerHTML = `<b>${s.label}</b>${s.sub}`; labels.appendChild(l);
+    const l = document.createElement("div"); l.innerHTML = `<b data-info="r_${s.key}">${s.label}</b>${s.sub}`; labels.appendChild(l);
     if (i > 0) { const t = document.createElement("span"); t.style.left = (100 * i / ns) + "%"; t.textContent = fx(s.lo / PSI, 2); ticks.appendChild(t); }
   });
   const J = S.geo.kind === "converging"
     ? [["sub", "Unchoked", (th.Pchoke + P0) / 2], ["chokedC", "Just choked", th.Pchoke * 0.98], ["chokedC", "Deeply choked", th.Pchoke * 0.4], ["chokedC", "Atmosphere", 14.696 * PSI]]
     : [["sub", "Unchoked", (th.Pchoke + P0) / 2], ["shock", "Shock near throat", th.Pchoke - (th.Pchoke - th.PshockExit) * 0.1], ["shock", "Shock mid-nozzle", (th.Pchoke + th.PshockExit) / 2],
        ["shock", "Shock at exit", th.PshockExit * 1.0005], ["over", "Overexpanded", Math.sqrt(th.PeIso * th.PshockExit)], ["ideal", "Ideal expansion", th.PeIso], ["under", "Underexpanded", th.PeIso * 0.45], ["sub", "Atmosphere (14.7)", 14.696 * PSI]];
+  if (window.FLInfo) FLInfo.decorate(labels);
   J.forEach(([k, txt, p]) => { if (p >= P0) return; const b = document.createElement("button"); b.innerHTML = `<span style="background:var(${REG[k].col})"></span>${txt}`; b.addEventListener("click", () => setPb(p)); jumps.appendChild(b); });
 }
 function pbToSlider(Pb) {
@@ -238,9 +242,9 @@ function renderSimulate() {
   const chip = $("chip"); chip.textContent = reg.name; chip.style.background = `var(${reg.col})`;
   $("chipSub").textContent = S.geo.kind !== "converging" ? `Thresholds: choke ${fx(th.Pchoke / PSI, 2)} · shock at exit ${fx(th.PshockExit / PSI, 2)} · ideal ${fx(th.PeIso / PSI, 2)} psia`
     : `Choking at Pb ≤ ${fx(th.Pchoke / PSI, 2)} psia`;
-  $("simTiles").innerHTML = [tile("Exit Mach", fx(s.M[n - 1], 3), `realistic ${fx(r.Me, 3)}`), tile("Exit velocity", fx(s.V[n - 1], 1), "m/s"),
-    tile("Mass flow", fx(s.mdot * 1000, 2), `g/s · realistic ${fx(r.mdot * 1000, 2)}`), tile("Exit pressure", fx(s.P[n - 1] / PSI, 2), "psia"),
-    tile("Thrust", fx(s.F, 2), `N · realistic ${fx(r.F, 2)}`), tile("Separation", r.sep ? fx(r.sep.frac * 100, 0) + "%" : "none", r.sep ? "of diverging length" : "realistic model", r.sep ? "real" : "")].join("");
+  $("simTiles").innerHTML = [tile("Exit Mach", fx(s.M[n - 1], 3), `realistic ${fx(r.Me, 3)}`, "", "s_M"), tile("Exit velocity", fx(s.V[n - 1], 1), "m/s", "", "s_V"),
+    tile("Mass flow", fx(s.mdot * 1000, 2), `g/s · realistic ${fx(r.mdot * 1000, 2)}`, "", "s_mdot"), tile("Exit pressure", fx(s.P[n - 1] / PSI, 2), "psia", "", "s_Pe"),
+    tile("Thrust", fx(s.F, 2), `N · realistic ${fx(r.F, 2)}`, "", "s_F"), tile("Separation", r.sep ? fx(r.sep.frac * 100, 0) + "%" : "none", r.sep ? "of diverging length" : "realistic model", r.sep ? "real" : "", "s_sep")].join("");
   updateExplain(); drawSimCharts();
 }
 function updateExplain() {
@@ -365,12 +369,12 @@ function probeAt(cx, cy) {
 /* ===================== COMPARE tab ===================== */
 function renderCompare() {
   const i = S.sol, r = S.real, n = i.M.length, pct = (a, b) => b === 0 ? "–" : (a / b - 1 >= 0 ? "+" : "") + fx(100 * (a / b - 1), 1) + "%";
-  const rows = [["Mass flow (g/s)", i.mdot * 1000, r.mdot * 1000, 3], ["Discharge coefficient Cd", 1, r.Cd, 4], ["Exit Mach", i.M[n - 1], r.Me, 3],
-    ["Exit or separation pressure (psia)", i.P[n - 1] / PSI, r.Pe / PSI, 3], ["Exit velocity (m/s)", i.V[n - 1], r.Ve, 1], ["Thrust (N)", i.F, r.F, 3], ["Thrust coefficient Cf", i.Cf, r.Cf, 4],
-    ["Effective area ratio", S.geo.Ae / S.geo.At, r.epsEff, 4], ["Divergence factor λ", 1, r.lambda, 4]];
+  const rows = [["Mass flow (g/s)", i.mdot * 1000, r.mdot * 1000, 3, "c_mdot"], ["Discharge coefficient Cd", 1, r.Cd, 4, "c_Cd"], ["Exit Mach", i.M[n - 1], r.Me, 3, "c_Me"],
+    ["Exit or separation pressure (psia)", i.P[n - 1] / PSI, r.Pe / PSI, 3, "c_Pe"], ["Exit velocity (m/s)", i.V[n - 1], r.Ve, 1, "c_Ve"], ["Thrust (N)", i.F, r.F, 3, "c_F"], ["Thrust coefficient Cf", i.Cf, r.Cf, 4, "c_Cf"],
+    ["Effective area ratio", S.geo.Ae / S.geo.At, r.epsEff, 4, "c_eps"], ["Divergence factor λ", 1, r.lambda, 4, "c_lambda"]];
   $("cmpTable").innerHTML = `<tr><th></th><th class="n">First model (ideal)</th><th class="n">Realistic</th><th class="n">Difference</th></tr>` +
-    rows.map(([k, a, b, d]) => `<tr><td>${k}</td><td class="n">${fx(a, d)}</td><td class="n">${fx(b, d)}</td><td class="n">${pct(b, a)}</td></tr>`).join("") +
-    `<tr><td>Regime</td><td class="n">${REG[i.regime].name}</td><td class="n">${r.sep ? "Separated at " + fx(r.sep.frac * 100, 0) + "%" : REG[r.sol.regime].name}</td><td></td></tr>`;
+    rows.map(([k, a, b, d, info]) => `<tr><td data-info="${info}">${k}</td><td class="n">${fx(a, d)}</td><td class="n">${fx(b, d)}</td><td class="n">${pct(b, a)}</td></tr>`).join("") +
+    `<tr><td data-info="c_regime">Regime</td><td class="n">${REG[i.regime].name}</td><td class="n">${r.sep ? "Separated at " + fx(r.sep.frac * 100, 0) + "%" : REG[r.sol.regime].name}</td><td></td></tr>`;
   $("cmpNotes").innerHTML = [`Boundary layer: displacement thickness ${fx(r.dstarThroat * 1e6, 0)} µm at the throat and ${fx(r.dstarExit * 1e6, 0)} µm at the exit; throat Reynolds number ${r.ReThroat.toExponential(2)}.`, ...r.notes]
     .map(t => `<p class="hint" style="margin:3px 0">${t}</p>`).join("");
   const xs = S.geo.x.map(v => v * 1000), realC = cssv("--r-over"), col = cssv("--accent");

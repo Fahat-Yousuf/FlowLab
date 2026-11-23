@@ -15,7 +15,6 @@
 <header class="top">
   <h1>Flow Lab Nozzle Studio</h1>
   <p>Design a nozzle, watch it choke and shock, compare the ideal theory with a realistic model, fix problems, and export it to CAD and ANSYS.</p>
-  <a class="gh" href="https://github.com/Fahat-Yousuf/FlowLab">Source on GitHub</a>
 </header>
 <nav class="tabs" role="tablist" aria-label="Sections">
   <a href="#design" role="tab" data-tab="design">Design</a>
@@ -30,13 +29,13 @@
 <div class="app">
 <aside>
   <div class="card">
-    <h3>Nozzle type</h3>
+    <h3 data-info="type">Nozzle type</h3>
     <div class="seg" role="group" aria-label="Nozzle type">
       <button id="tyCD" aria-pressed="true">Converging–diverging</button>
       <button id="tyConv" aria-pressed="false">Converging only</button>
     </div>
     <div class="cdOnly stack">
-      <span class="hint">Diverging wall shape</span>
+      <span class="hint" data-info="wallshape">Diverging wall shape</span>
       <div class="seg" role="group" aria-label="Diverging wall shape">
         <button id="shBell" data-shape="bell" aria-pressed="true">Bell (Rao)</button>
         <button id="shCone" data-shape="conical" aria-pressed="false">Conical</button>
@@ -55,7 +54,7 @@
     <p class="hint num" id="geoInfo"></p>
   </div>
   <div class="card">
-    <h3>Gas and operating point</h3>
+    <h3 data-info="operating">Gas and operating point</h3>
     <div class="field"><label for="gas">Gas</label>
       <select id="gas"><option value="air">Air</option><option value="n2">Nitrogen</option><option value="he">Helium</option><option value="h2">Hydrogen</option><option value="o2">Oxygen</option><option value="co2">CO₂</option></select></div>
     <div class="field"><label for="P0">Supply total pressure P₀ (psia)</label><input id="P0" type="number" step="1" value="100"></div>
@@ -64,14 +63,14 @@
     <p class="hint">Atmosphere at sea level is 14.7 psia. All pressures are absolute.</p>
   </div>
   <div class="card">
-    <h3>Build</h3>
+    <h3 data-info="build">Build</h3>
     <div class="field"><label for="mat">Material</label>
       <select id="mat"><option value="pla">PLA (3D print)</option><option value="petg">PETG (3D print)</option><option value="resin">Tough SLA resin</option><option value="al6061" selected>Aluminium 6061-T6</option><option value="ss316">Stainless 316</option><option value="brass">Brass C360</option></select></div>
     <div class="field"><label for="wall">Wall thickness (mm)</label><input id="wall" type="number" step="0.5" min="0.2" value="3"></div>
     <div class="field"><label for="sf">Safety factor</label><input id="sf" type="number" step="0.5" min="1" value="4"></div>
   </div>
   <div class="card">
-    <h3>Realistic model</h3>
+    <h3 data-info="realModel">Realistic model</h3>
     <div class="field"><label for="crit">Separation criterion</label>
       <select id="crit"><option value="schmucker">Schmucker</option><option value="summerfield">Summerfield (0.4·Pb)</option></select></div>
     <label class="check"><input type="checkbox" id="showReal" checked> Overlay realistic model on plots</label>
@@ -88,12 +87,12 @@
       <div class="tiles" style="margin-top:12px" id="dsTiles"></div>
     </div>
     <div class="card">
-      <div class="plothead"><h3>Dimensioned half-section</h3><span class="hint">Grey: wall. Dash-dot: axis. Lengths and diameters in mm.</span></div>
+      <div class="plothead"><h3 data-info="h_drawing">Dimensioned half-section</h3><span class="hint">Grey: wall. Dash-dot: axis. Lengths and diameters in mm.</span></div>
       <canvas class="drawing" id="drawing" aria-label="Dimensioned drawing of the nozzle"></canvas>
     </div>
     <div class="two">
       <section class="card design">
-        <h2>Design backwards from a target</h2>
+        <h2 data-info="h_design">Design backwards from a target</h2>
         <p class="hint" style="margin:4px 0 10px">Sizes the nozzle for shock-free supersonic flow at the current gas, P₀ and T₀.</p>
         <div class="row">
           <div><label for="dMode">Target</label>
@@ -117,12 +116,12 @@
   <!-- ===================== SIMULATE ===================== -->
   <section class="view" id="view-simulate" data-view="simulate" hidden>
     <section class="card">
-      <div class="status"><span class="chip" id="chip">Regime</span><span class="hint" id="chipSub"></span></div>
+      <div class="status"><span class="chip" id="chip">Regime</span><span data-info="regime"></span><span class="hint" id="chipSub"></span></div>
       <div class="tiles" style="margin-top:12px" id="simTiles"></div>
     </section>
     <section class="card">
       <div class="pbhead">
-        <h2><label for="pb">Back pressure P<sub>b</sub></label></h2>
+        <h2 data-info="h_pb"><label for="pb">Back pressure P<sub>b</sub></label></h2>
         <div><span class="val" id="pbVal">–</span> <span class="hint">psia · <span id="pbRatio" class="num"></span></span></div>
       </div>
       <div class="track"><div class="bands" id="bands"></div><input type="range" id="pb" min="0" max="1000" step="1" value="700"></div>
@@ -133,6 +132,7 @@
     <section class="card">
       <div class="vizwrap"><canvas id="viz" aria-label="Animated nozzle flow coloured by the selected property"></canvas><div class="probe" id="probe"></div></div>
       <div class="vizbar">
+        <span class="hint" data-info="h_viz">Reading this view</span>
         <div class="field" style="grid-template-columns:auto 150px"><label for="colorBy">Colour by</label>
           <select id="colorBy"><option value="M">Mach number</option><option value="P">Pressure</option><option value="T">Temperature</option><option value="V">Velocity</option><option value="rho">Density</option></select></div>
         <div class="legend"><span id="legMin" class="num"></span><canvas id="legCanvas" width="160" height="10"></canvas><span id="legMax" class="num"></span></div>
@@ -141,43 +141,43 @@
       </div>
     </section>
     <section class="plots">
-      <div class="card"><div class="plothead"><h3>Wall pressure P/P₀</h3></div><div class="plot" id="plotP"></div></div>
-      <div class="card"><div class="plothead"><h3>Along the nozzle</h3>
+      <div class="card"><div class="plothead"><h3 data-info="h_plotP">Wall pressure P/P₀</h3></div><div class="plot" id="plotP"></div></div>
+      <div class="card"><div class="plothead"><h3 data-info="h_plot2">Along the nozzle</h3>
         <select id="plot2Var" aria-label="Second plot variable"><option value="M">Mach number</option><option value="T">Temperature</option><option value="V">Velocity</option><option value="rho">Density</option></select></div>
         <div class="plot" id="plot2"></div></div>
-      <div class="card"><div class="plothead"><h3>Mass flow vs back pressure</h3></div><div class="plot" id="plotM"></div></div>
+      <div class="card"><div class="plothead"><h3 data-info="h_plotM">Mass flow vs back pressure</h3></div><div class="plot" id="plotM"></div></div>
     </section>
-    <section class="card explain"><h2>What is happening right now</h2><div id="explain"></div></section>
+    <section class="card explain"><h2 data-info="h_explain">What is happening right now</h2><div id="explain"></div></section>
   </section>
 
   <!-- ===================== COMPARE ===================== -->
   <section class="view" id="view-compare" data-view="compare" hidden>
     <section class="card">
-      <h2>First model vs realistic model</h2>
+      <h2 data-info="h_cmp">First model vs realistic model</h2>
       <p class="hint" style="margin:4px 0 10px">The first model is the ideal quasi-1D theory (the original Flow Lab solver). The realistic model adds boundary layers, throat-curvature discharge, divergence loss and flow separation. See <a href="#learn">How it works</a> for each correction.</p>
       <div class="tablewrap"><table class="out" id="cmpTable"></table></div>
       <div id="cmpNotes" style="margin-top:8px"></div>
     </section>
     <section class="plots">
-      <div class="card"><div class="plothead"><h3>Wall pressure: ideal vs realistic</h3></div><div class="plot" id="cmpP"></div></div>
-      <div class="card"><div class="plothead"><h3>Mach number: ideal vs realistic</h3></div><div class="plot" id="cmpM"></div></div>
+      <div class="card"><div class="plothead"><h3 data-info="h_cmpP">Wall pressure: ideal vs realistic</h3></div><div class="plot" id="cmpP"></div></div>
+      <div class="card"><div class="plothead"><h3 data-info="h_cmpM">Mach number: ideal vs realistic</h3></div><div class="plot" id="cmpM"></div></div>
     </section>
     <section class="card">
-      <div class="plothead"><h2>Saved designs</h2>
+      <div class="plothead"><h2 data-info="h_saved">Saved designs</h2>
         <div class="pyctl"><label for="saveName" class="hint">Name</label><input id="saveName" type="text" placeholder="e.g. Bell M3 v2" style="width:180px"><button class="btn solid" id="saveBtn">Save current design</button></div></div>
       <p class="hint" style="margin:4px 0 10px">Saved in this browser only. Tick designs to overlay them below.</p>
       <div class="tablewrap"><table class="out" id="savedTable"></table></div>
     </section>
     <section class="plots">
-      <div class="card"><div class="plothead"><h3>Wall contours</h3></div><div class="plot tall" id="savedGeo"></div></div>
-      <div class="card"><div class="plothead"><h3>Ideal wall pressure P/P₀</h3></div><div class="plot tall" id="savedP"></div></div>
+      <div class="card"><div class="plothead"><h3 data-info="h_savedGeo">Wall contours</h3></div><div class="plot tall" id="savedGeo"></div></div>
+      <div class="card"><div class="plothead"><h3 data-info="h_savedP">Ideal wall pressure P/P₀</h3></div><div class="plot tall" id="savedP"></div></div>
     </section>
   </section>
 
   <!-- ===================== CHECKS ===================== -->
   <section class="view" id="view-checks" data-view="checks" hidden>
     <section class="card">
-      <h2>Check &amp; fix</h2>
+      <h2 data-info="h_checks">Check &amp; fix</h2>
       <p class="hint" style="margin:4px 0 10px">Flow Lab checks the current design against gas dynamics, viscous effects, strength and manufacturing rules of thumb. "Apply fix" changes the design for you; you can always change it back.</p>
       <div class="checksum" id="checkSum"></div>
     </section>
@@ -252,7 +252,7 @@
   <!-- ===================== PYTHON ===================== -->
   <section class="view" id="view-python" data-view="python" hidden>
     <section class="card">
-      <h2>Python lab</h2>
+      <h2 data-info="h_py">Python lab</h2>
       <p class="hint" style="margin:4px 0 10px">Real Python running in your browser (Pyodide). The <code>flowlab</code> package here is the same engine as the website, and you can <a href="https://github.com/Fahat-Yousuf/FlowLab/tree/main/python">install it on your own computer</a>. The first run downloads Python (about 10 MB).</p>
       <div class="pyctl">
         <label for="pySnip" class="hint">Example</label>
@@ -265,26 +265,26 @@
     </section>
     <section class="card"><label for="pyCode" class="hint">Code (Tab inserts 4 spaces, Ctrl/⌘ + Enter runs)</label><textarea id="pyCode" spellcheck="false"></textarea></section>
     <section class="two">
-      <div class="card"><h3>Output</h3><pre id="pyOut"></pre></div>
-      <div class="card"><h3>Plot</h3><div class="plot" id="pyPlot"></div><p class="hint">Use <code>plot.line(x, {"name": y}, title=..., xlabel=..., ylabel=...)</code>.</p></div>
+      <div class="card"><h3 data-info="h_pyOut">Output</h3><pre id="pyOut"></pre></div>
+      <div class="card"><h3 data-info="h_pyPlot">Plot</h3><div class="plot" id="pyPlot"></div><p class="hint">Use <code>plot.line(x, {"name": y}, title=..., xlabel=..., ylabel=...)</code>.</p></div>
     </section>
   </section>
 
   <!-- ===================== EXPORT ===================== -->
   <section class="view" id="view-export" data-view="export" hidden>
     <section class="card">
-      <h2>Build it and simulate it</h2>
+      <h2 data-info="h_export">Build it and simulate it</h2>
       <p class="hint" style="margin:4px 0 10px">Every file is generated from the current design, in millimetres, using the wall thickness from the Build panel.</p>
       <div class="exportOpts"><div class="field"><label for="xSeg">Facets around (STL smoothness)</label><input id="xSeg" type="number" step="12" min="24" max="360" value="96"></div></div>
       <div class="exportGrid">
         <div>
-          <h3>CAD (Siemens NX, SolidWorks, Fusion, 3D printing)</h3>
+          <h3 data-info="h_cad">CAD (Siemens NX, SolidWorks, Fusion, 3D printing)</h3>
           <div class="dl"><button class="btn solid" id="xPartStl">Nozzle part (.stl)</button><p class="hint">Closed solid with your wall thickness. NX: File › Import › STL, units mm. Ready for a slicer.</p></div>
           <div class="dl"><button class="btn" id="xPartDxf">Half-section sketch (.dxf)</button><p class="hint">Closed wall profile plus the axis. Revolve it in NX for an exact, editable solid.</p></div>
           <div class="dl"><button class="btn" id="xContour">Wall contour points (.csv)</button><p class="hint">Inner wall x, r in mm, for a spline or the MATLAB app.</p></div>
         </div>
         <div>
-          <h3>CFD (ANSYS Fluent)</h3>
+          <h3 data-info="h_cfd">CFD (ANSYS Fluent)</h3>
           <div class="dl"><button class="btn solid" id="xFluentDxf">2-D axisymmetric fluid domain (.dxf)</button>
             <label class="check"><input type="checkbox" id="xPlenum" checked> Add exhaust plenum (to see the jet and external shocks)</label>
             <p class="hint">SpaceClaim or Discovery: Fill to make a surface, then name edges by layer: INLET, WALL, AXIS, OUTLET, FARFIELD.</p></div>
@@ -301,6 +301,7 @@
 </div>
 <footer>Flow Lab models steady quasi-one-dimensional flow of a calorically perfect gas, with engineering estimates for viscous losses and separation. Use it to learn and to size designs, then confirm with CFD and experiments. Geometry is not pressure-rated: proof-test hardware before running gas.</footer>
 <script src="js/physics.js"></script>
+<script src="js/info.js"></script>
 <script src="js/app.js"></script>
 <script src="js/pylab.js"></script>
 </body>

@@ -180,3 +180,12 @@ pre#pyOut .err{color:var(--bad)}
 .dl .hint{flex-basis:100%}
 footer{padding:0 20px 24px;color:var(--muted);font-size:13px;max-width:900px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;scroll-behavior:auto!important}}
+/* info icons and tooltip */
+.info{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:5px;border-radius:50%;border:1.3px solid var(--muted);color:var(--muted);
+  font:italic 700 11px/1 Georgia,"Times New Roman",serif;cursor:help;vertical-align:middle;text-transform:none;letter-spacing:0;flex:none;user-select:none}
+.info:hover,.info:focus-visible{color:#fff;background:var(--accent);border-color:var(--accent);outline:none}
+.tip{position:fixed;z-index:1000;max-width:330px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;
+  padding:10px 12px;box-shadow:0 10px 28px rgba(0,0,0,.22);font:13px/1.55 var(--body);pointer-events:auto}
+.tip b{font:600 14px var(--display)}
+.tip p{margin:4px 0 0}
+.chip + [data-info]{display:inline-flex}
