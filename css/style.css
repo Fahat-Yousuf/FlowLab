@@ -150,7 +150,9 @@ table.out td.n,table.out th.n{text-align:right;font-family:var(--mono);font-vari
 .prose h2{margin:22px 0 6px}
 .prose h3{margin:16px 0 4px}
 .prose p,.prose li{line-height:1.6}
-.eq{font-family:var(--mono);background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:8px 12px;margin:8px 0;overflow-x:auto;white-space:nowrap}
+.eq{font-family:var(--mono);background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:8px 12px;margin:8px 0;display:flex;flex-direction:column;gap:6px}
+/* one equation per line; a long one wraps with a hanging indent instead of scrolling */
+.eq .eql{display:block;padding-left:1.5em;text-indent:-1.5em;white-space:normal;overflow-wrap:anywhere;line-height:1.5}
 .toc{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px}
 .ladder{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:10px 0}
 .ladder div{border:1px solid var(--line);border-radius:7px;padding:10px;background:var(--soft)}

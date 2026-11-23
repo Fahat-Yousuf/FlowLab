@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20261123b">
+<link rel="stylesheet" href="css/style.css?v=20261123c">
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 </head>
 <body>
@@ -200,25 +200,25 @@
 
       <h3>Ideal model (the first model)</h3>
       <p>The gas is calorically perfect (constant γ and R), the flow is steady and one-dimensional (properties vary only along the axis), and there is no friction or heat transfer. Away from shocks the flow is isentropic:</p>
-      <div class="eq">T₀/T = 1 + (γ−1)/2 · M²  &nbsp;&nbsp;  P₀/P = (T₀/T)^(γ/(γ−1))  &nbsp;&nbsp;  ρ = P/(R·T)  &nbsp;&nbsp;  V = M·√(γRT)</div>
+      <div class="eq"><span class="eql">T₀/T = 1 + (γ−1)/2 · M²</span><span class="eql">P₀/P = (T₀/T)^(γ/(γ−1))</span><span class="eql">ρ = P/(R·T)</span><span class="eql">V = M·√(γRT)</span></div>
       <p>Mass conservation links area and Mach number. For each area ratio there is one subsonic and one supersonic solution:</p>
-      <div class="eq">A/A* = (1/M) · [ (2/(γ+1)) · (1 + (γ−1)/2 · M²) ]^((γ+1)/(2(γ−1)))</div>
+      <div class="eq"><span class="eql">A/A* = (1/M) · [ (2/(γ+1)) · (1 + (γ−1)/2 · M²) ]^((γ+1)/(2(γ−1)))</span></div>
       <p>When the throat reaches Mach 1 the nozzle is <b>choked</b>, and the mass flow can no longer change with back pressure:</p>
-      <div class="eq">ṁ = A_t · P₀ · √(γ/(R·T₀)) · (2/(γ+1))^((γ+1)/(2(γ−1)))</div>
+      <div class="eq"><span class="eql">ṁ = A_t · P₀ · √(γ/(R·T₀)) · (2/(γ+1))^((γ+1)/(2(γ−1)))</span></div>
       <p>A normal shock is an abrupt jump from supersonic to subsonic flow. Total temperature is conserved but total pressure drops:</p>
-      <div class="eq">M₂² = (1 + (γ−1)/2·M₁²) / (γM₁² − (γ−1)/2)  &nbsp;&nbsp;  P₂/P₁ = 1 + 2γ/(γ+1)·(M₁² − 1)</div>
+      <div class="eq"><span class="eql">M₂² = (1 + (γ−1)/2·M₁²) / (γM₁² − (γ−1)/2)</span><span class="eql">P₂/P₁ = 1 + 2γ/(γ+1)·(M₁² − 1)</span></div>
       <p><b>How the regime is found.</b> Three back pressures divide a converging–diverging nozzle's behaviour. Above the <i>choking pressure</i> the flow is subsonic everywhere. Between the choking pressure and the <i>shock-at-exit pressure</i> a normal shock stands inside the nozzle; Flow Lab finds its position by bisection so that the exit pressure equals P<sub>b</sub>. Below the shock-at-exit pressure the flow inside is fully supersonic and the jet adjusts outside: overexpanded above the <i>ideal exit pressure</i>, underexpanded below it.</p>
 
       <h3>Realistic model</h3>
       <p>Each correction is a standard engineering estimate. Together they usually bring the 1-D prediction within a few percent of measurements for attached flow. They are estimates, so the Compare tab always shows them next to the ideal model.</p>
       <p><b>Boundary layer.</b> Friction slows a thin layer of gas at the wall. Its displacement thickness δ* acts like a smaller nozzle. Flow Lab grows δ* along the wall with the turbulent flat-plate law, using properties at the Eckert reference temperature for compressibility (laminar Blasius law below Re = 5×10⁵):</p>
-      <div class="eq">δ* ≈ 0.046 · s / Re_s^0.2  &nbsp;&nbsp;  T_ref = T + 0.5(T_w − T) + 0.22(T_r − T),  T_w = T_r (adiabatic wall)</div>
+      <div class="eq"><span class="eql">δ* ≈ 0.046 · s / Re_s^0.2</span><span class="eql">T_ref = T + 0.5(T_w − T) + 0.22(T_r − T)</span><span class="eql">T_w = T_r (adiabatic wall)</span></div>
       <p>The effective area π(r − δ*)² lowers the throat area (mass flow) and the effective area ratio (exit Mach). Accuracy is about ±30% on δ* itself, which is usually a 1–3% effect on the results.</p>
       <p><b>Throat curvature.</b> A curved sonic line passes less flow than a flat one. Leading term of Hall's (1962) analysis, with R = R<sub>c</sub>/R<sub>t</sub> floored at 1:</p>
-      <div class="eq">C_d,inviscid ≈ 1 − (γ+1) / (96 · R²)   &nbsp;&nbsp;   C_d = C_d,inviscid × C_d,boundary-layer</div>
+      <div class="eq"><span class="eql">C_d,inviscid ≈ 1 − (γ+1) / (96 · R²)</span><span class="eql">C_d = C_d,inviscid × C_d,boundary-layer</span></div>
       <p><b>Divergence loss.</b> Gas leaving a cone at half-angle α does not all point backwards, so only part of the momentum becomes thrust: λ = (1 + cos α)/2. A 15° cone loses 1.7%. Flow Lab uses the exit wall angle θ<sub>e</sub> for bells, which is an approximation.</p>
       <p><b>Flow separation.</b> In a strongly overexpanded nozzle the wall pressure falls so far below ambient that the boundary layer cannot push against the rise, and the jet peels off the wall. Flow Lab marches along the wall and flags the first point that meets the selected criterion:</p>
-      <div class="eq">Summerfield: P_w < 0.4·P_b   &nbsp;&nbsp;   Schmucker: P_w/P_b < (1.88·M_w − 1)^(−0.64)</div>
+      <div class="eq"><span class="eql">Summerfield: P_w < 0.4·P_b</span><span class="eql">Schmucker: P_w/P_b < (1.88·M_w − 1)^(−0.64)</span></div>
       <p>Downstream of separation the wall pressure is drawn rising to P<sub>b</sub>, and thrust is computed at the separation point. That is why a separated nozzle can produce <i>more</i> thrust than the ideal model predicts for full overexpanded flow. Real separation is unsteady and creates side loads, so design to avoid it.</p>
       <p><b>What the realistic model still leaves out:</b> friction losses of total pressure, heat transfer, 2-D throat flow, oblique and curved shocks, shock–boundary-layer interaction details, real-gas effects and condensation. CFD and experiments cover these.</p>
 
@@ -300,9 +300,9 @@
 </main>
 </div>
 <footer>Flow Lab models steady quasi-one-dimensional flow of a calorically perfect gas, with engineering estimates for viscous losses and separation. Use it to learn and to size designs, then confirm with CFD and experiments. Geometry is not pressure-rated: proof-test hardware before running gas.</footer>
-<script src="js/physics.js?v=20261123b"></script>
-<script src="js/info.js?v=20261123b"></script>
-<script src="js/app.js?v=20261123b"></script>
-<script src="js/pylab.js?v=20261123b"></script>
+<script src="js/physics.js?v=20261123c"></script>
+<script src="js/info.js?v=20261123c"></script>
+<script src="js/app.js?v=20261123c"></script>
+<script src="js/pylab.js?v=20261123c"></script>
 </body>
 </html>
