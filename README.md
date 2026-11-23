@@ -1,3 +1,5 @@
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg"><img src="assets/logo.svg" alt="Flow Lab" width="380"></picture></p>
+
 # Flow Lab Nozzle Studio
 
 Design, simulate, check and export supersonic nozzles. A teaching tool that connects compressible-flow theory with real engineering design.
@@ -34,6 +36,8 @@ js/info.js          ⓘ info tips: explanation text and tooltip
 python/flowlab/     the same engine as a pip-installable Python package
 python/tests/       Python verification tests
 docs/               code guide and rocket nozzle guide
+assets/             logo files (SVG for light and dark backgrounds, PNG mark)
+favicon.svg         browser tab and home-screen icons (plus PNG versions)
 ```
 
 ## Python
